@@ -8,7 +8,7 @@ from stacked_eventstudy.aggregation import aggregate_cohort_params, compute_coho
 from stacked_eventstudy.estimation import (
     estimate_cohort_models,
     estimate_joint_stacked_model,
-    extract_joint_covariance_by_event_time,
+    extract_joint_parameter_covariance,
 )
 from stacked_eventstudy.preprocess import keep_admissible_cohorts, prepare_panel_data
 from stacked_eventstudy.scaling import (
@@ -84,7 +84,7 @@ def estimate_stacked_eventstudy(
 
     cohort_params, model_summaries = estimate_cohort_models(stacked_data=stacked_data, config=config)
     joint_model = estimate_joint_stacked_model(stacked_data=stacked_data, config=config)
-    covariance_by_event_time = extract_joint_covariance_by_event_time(
+    parameter_covariance = extract_joint_parameter_covariance(
         fitted_model=joint_model,
         cohort_params=cohort_params,
         config=config,
@@ -107,8 +107,8 @@ def estimate_stacked_eventstudy(
             cohort_params=cohort_params,
             pre_birth_levels=pre_birth_levels,
         )
-        covariance_by_event_time = scale_covariance_by_event_time(
-            covariance_by_event_time=covariance_by_event_time,
+        parameter_covariance = scale_covariance_by_event_time(
+            parameter_covariance=parameter_covariance,
             pre_birth_levels=pre_birth_levels,
         )
 
@@ -122,7 +122,7 @@ def estimate_stacked_eventstudy(
     average_params, vcov_average = aggregate_cohort_params(
         cohort_params=cohort_params,
         cohort_weights=cohort_weights,
-        covariance_by_event_time=covariance_by_event_time,
+        parameter_covariance=parameter_covariance,
     )
 
     if scale == "pre_birth":

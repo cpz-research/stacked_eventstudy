@@ -62,6 +62,7 @@ def extract_subevent_params(
             {
                 "subevent": subevent,
                 "event_time": event_time,
+                "term_label": _joint_regressor_name(subevent=subevent, event_time=event_time),
                 "estimate": estimate,
                 "std_error": std_error,
                 "ci_low": ci_low,
@@ -72,24 +73,25 @@ def extract_subevent_params(
     return pd.DataFrame(rows)
 
 
-def extract_joint_covariance_by_event_time(
+def extract_joint_parameter_covariance(
     fitted_model: object,
     cohort_params: pd.DataFrame,
     config: EstimatorConfig,
-) -> dict[int, pd.DataFrame]:
-    """Extract covariance blocks by event time from the joint model."""
+) -> pd.DataFrame:
+    """Extract the joint covariance matrix for cohort-event coefficients."""
     covariance_matrix = fitted_model.cov_params()
-    covariance_by_event_time: dict[int, pd.DataFrame] = {}
-    subevents_by_event_time = (
-        cohort_params.groupby("event_time", sort=True)["subevent"].apply(list).to_dict()
+    parameter_index = pd.MultiIndex.from_frame(
+        cohort_params.loc[:, ["event_time", "subevent"]],
+        names=["event_time", "subevent"],
     )
-    for event_time, subevents in subevents_by_event_time.items():
-        labels = [_joint_regressor_name(subevent=int(subevent), event_time=int(event_time)) for subevent in subevents]
-        covariance_block = covariance_matrix.loc[labels, labels].copy()
-        covariance_block.index = [int(subevent) for subevent in subevents]
-        covariance_block.columns = [int(subevent) for subevent in subevents]
-        covariance_by_event_time[int(event_time)] = covariance_block
-    return covariance_by_event_time
+    labels = [
+        _joint_regressor_name(subevent=int(subevent), event_time=int(event_time))
+        for event_time, subevent in parameter_index.tolist()
+    ]
+    joint_covariance = covariance_matrix.loc[labels, labels].copy()
+    joint_covariance.index = parameter_index
+    joint_covariance.columns = parameter_index
+    return joint_covariance
 
 
 def _fit_formula_model(data: pd.DataFrame, formula: str, config: EstimatorConfig) -> object:
