@@ -1,0 +1,70 @@
+[build-system]
+build-backend = "hatchling.build"
+requires = ["hatchling"]
+
+[project]
+name = "stacked_eventstudy"
+version = "0.1.0"
+description = "Stacked event-study estimation with rolling-window controls."
+readme = "README.md"
+requires-python = ">=3.13"
+dependencies = [
+  "numpy",
+  "pandas",
+  "scipy",
+  "statsmodels",
+]
+classifiers = [
+  "Programming Language :: Python :: 3 :: Only",
+  "Programming Language :: Python :: 3.13",
+  "Programming Language :: Python :: 3.14",
+]
+
+[project.optional-dependencies]
+dev = [
+  "pytest",
+]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+
+[tool.ruff]
+target-version = "py313"
+fix = true
+
+[tool.ruff.lint]
+select = ["ALL"]
+extend-ignore = [
+  "COM812",
+  "D",
+  "EM101",
+  "EM102",
+  "ISC001",
+  "PD901",
+  "PLR0913",
+  "PLR0915",
+  "S101",
+  "TC001",
+  "TC002",
+  "TC003",
+  "TRY003",
+]
+pydocstyle.convention = "google"
+
+[tool.pyproject-fmt]
+column_width = 88
+max_supported_python = "3.14"
+table_format = "long"
+collapse_tables = ["tool.hatch"]
+
+[tool.pixi.workspace]
+channels = ["conda-forge"]
+platforms = ["linux-64"]
+
+[tool.pixi.dependencies]
+numpy = "*"
+pandas = "*"
+pytest = "*"
+python = ">=3.13,<3.15"
+scipy = "*"
+statsmodels = "*"
