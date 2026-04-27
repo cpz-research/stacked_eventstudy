@@ -6,8 +6,8 @@ import pandas as pd
 
 from stacked_eventstudy.aggregation import aggregate_cohort_params, compute_cohort_weights
 from stacked_eventstudy.estimation import (
-    estimate_cohort_models,
     estimate_joint_stacked_model,
+    extract_cohort_params_from_joint_model,
     extract_joint_parameter_covariance,
 )
 from stacked_eventstudy.preprocess import prepare_panel_data
@@ -104,17 +104,14 @@ def estimate_stacked_eventstudy(
         raise ValueError(msg)
 
     panel = prepare_panel_data(data=data, config=config)
-    admissible_cohorts = tuple(
-        int(value)
-        for value in validation.cohort_diagnostics.loc[
-            validation.cohort_diagnostics["admissible"],
-            "subevent",
-        ].tolist()
-    )
     stacked_data = build_stacked_data(data=panel, config=config, validation=validation)
 
-    cohort_params, model_summaries = estimate_cohort_models(stacked_data=stacked_data, config=config)
     joint_model = estimate_joint_stacked_model(stacked_data=stacked_data, config=config)
+    cohort_params = extract_cohort_params_from_joint_model(
+        fitted_model=joint_model,
+        stacked_data=stacked_data,
+        config=config,
+    )
     parameter_covariance = extract_joint_parameter_covariance(
         fitted_model=joint_model,
         cohort_params=cohort_params,
@@ -165,7 +162,7 @@ def estimate_stacked_eventstudy(
         cohort_weights=cohort_weights,
         vcov_average=vcov_average,
         config=config,
-        model_summaries=model_summaries,
+        model_summaries={"joint": joint_model},
         validation=validation,
         stacked_data=stacked_data if return_stacked_data else None,
     )

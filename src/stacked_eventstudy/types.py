@@ -67,7 +67,7 @@ class StackedEventStudyResult:
         cohort_weights: Treated cohort weights used in aggregation.
         vcov_average: Covariance matrix for aggregated effects.
         config: Normalized estimator settings.
-        model_summaries: Backend model results by subevent.
+        model_summaries: Backend model results returned by the estimator.
         validation: Validation output used during estimation.
         stacked_data: Constructed stacked sample when requested.
     """
@@ -77,6 +77,6 @@ class StackedEventStudyResult:
     cohort_weights: pd.DataFrame
     vcov_average: pd.DataFrame
     config: EstimatorConfig
-    model_summaries: dict[int, object]
+    model_summaries: dict[str, object]
     validation: StackedEventStudyValidation
     stacked_data: pd.DataFrame | None

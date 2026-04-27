@@ -6,35 +6,12 @@ from stacked_eventstudy.types import EstimatorConfig
 from stacked_eventstudy.utils import make_confidence_interval
 
 
-def estimate_cohort_models(
-    stacked_data: pd.DataFrame,
-    config: EstimatorConfig,
-) -> tuple[pd.DataFrame, dict[int, object]]:
-    """Estimate separate cohort-specific regressions."""
-    summaries: dict[int, object] = {}
-    results: list[pd.DataFrame] = []
-    for subevent in sorted(int(value) for value in stacked_data["subevent"].unique()):
-        subevent_data = stacked_data.loc[stacked_data["subevent"] == subevent].copy()
-        fitted_model = fit_subevent_model(subevent_data=subevent_data, config=config)
-        summaries[subevent] = fitted_model
-        results.append(extract_subevent_params(fitted_model=fitted_model, subevent=subevent, config=config))
-    cohort_params = pd.concat(results, ignore_index=True)
-    return cohort_params.sort_values(["subevent", "event_time"]).reset_index(drop=True), summaries
-
-
 def estimate_joint_stacked_model(
     stacked_data: pd.DataFrame,
     config: EstimatorConfig,
 ) -> object:
     """Estimate the fully interacted stacked regression."""
     return fit_joint_model(stacked_data=stacked_data, config=config)
-
-
-def fit_subevent_model(subevent_data: pd.DataFrame, config: EstimatorConfig) -> object:
-    """Fit one cohort-specific regression model."""
-    design_data = _add_subevent_regressors(data=subevent_data, config=config)
-    formula = _make_subevent_formula(config=config)
-    return _fit_formula_model(data=design_data, formula=formula, config=config)
 
 
 def fit_joint_model(stacked_data: pd.DataFrame, config: EstimatorConfig) -> object:
@@ -44,15 +21,23 @@ def fit_joint_model(stacked_data: pd.DataFrame, config: EstimatorConfig) -> obje
     return _fit_formula_model(data=design_data, formula=formula, config=config)
 
 
-def extract_subevent_params(
+def extract_cohort_params_from_joint_model(
     fitted_model: object,
-    subevent: int,
+    stacked_data: pd.DataFrame,
     config: EstimatorConfig,
 ) -> pd.DataFrame:
-    """Extract event-time coefficients from a cohort-specific model."""
+    """Extract cohort-specific event-time coefficients from the joint model."""
     rows: list[dict[str, object]] = []
-    for event_time in _non_reference_event_times(config):
-        term_label = _subevent_regressor_name(event_time)
+    cohort_event_pairs = (
+        stacked_data.loc[stacked_data["treated_in_subevent"] == 1, ["subevent", "event_time"]]
+        .drop_duplicates()
+        .sort_values(["subevent", "event_time"])
+        .itertuples(index=False, name=None)
+    )
+    for subevent, event_time in cohort_event_pairs:
+        if int(event_time) == config.reference_event_time:
+            continue
+        term_label = _joint_regressor_name(subevent=int(subevent), event_time=int(event_time))
         if term_label not in fitted_model.params.index:
             continue
         estimate = float(fitted_model.params.loc[term_label])
@@ -60,9 +45,9 @@ def extract_subevent_params(
         ci_low, ci_high = make_confidence_interval(estimate=estimate, std_error=std_error)
         rows.append(
             {
-                "subevent": subevent,
-                "event_time": event_time,
-                "term_label": _joint_regressor_name(subevent=subevent, event_time=event_time),
+                "subevent": int(subevent),
+                "event_time": int(event_time),
+                "term_label": term_label,
                 "estimate": estimate,
                 "std_error": std_error,
                 "ci_low": ci_low,
@@ -70,7 +55,7 @@ def extract_subevent_params(
                 "scale": "none",
             },
         )
-    return pd.DataFrame(rows)
+    return pd.DataFrame(rows).sort_values(["subevent", "event_time"]).reset_index(drop=True)
 
 
 def extract_joint_parameter_covariance(
@@ -115,13 +100,6 @@ def _fit_formula_model(data: pd.DataFrame, formula: str, config: EstimatorConfig
     return model.fit(**fit_kwargs)
 
 
-def _make_subevent_formula(config: EstimatorConfig) -> str:
-    """Create the cohort-specific formula."""
-    regressor_terms = [_subevent_regressor_name(event_time) for event_time in _non_reference_event_times(config)]
-    base_terms = [*regressor_terms, "C(unit_id)", "C(age)", *config.covariates]
-    return "outcome ~ 0 + " + " + ".join(base_terms)
-
-
 def _make_joint_formula(data: pd.DataFrame, config: EstimatorConfig) -> str:
     """Create the joint stacked formula."""
     regressor_terms = [
@@ -131,17 +109,6 @@ def _make_joint_formula(data: pd.DataFrame, config: EstimatorConfig) -> str:
     ]
     base_terms = [*regressor_terms, "C(unit_subevent_id)", "C(subevent):C(age)", *config.covariates]
     return "outcome ~ 0 + " + " + ".join(base_terms)
-
-
-def _add_subevent_regressors(data: pd.DataFrame, config: EstimatorConfig) -> pd.DataFrame:
-    """Add explicit event-time indicators to one subevent stack."""
-    design_data = data.copy()
-    for event_time in _non_reference_event_times(config):
-        column_name = _subevent_regressor_name(event_time)
-        design_data[column_name] = (
-            (design_data["event_time"] == event_time) & (design_data["treated_in_subevent"] == 1)
-        ).astype(int)
-    return design_data
 
 
 def _add_joint_regressors(data: pd.DataFrame, config: EstimatorConfig) -> pd.DataFrame:
@@ -165,24 +132,10 @@ def _add_joint_regressors(data: pd.DataFrame, config: EstimatorConfig) -> pd.Dat
     return design_data
 
 
-def _non_reference_event_times(config: EstimatorConfig) -> tuple[int, ...]:
-    """Return event times excluding the omitted reference period."""
-    return tuple(
-        event_time
-        for event_time in range(config.l_min, config.l_max + 1)
-        if event_time != config.reference_event_time
-    )
-
-
 def _encode_event_time(event_time: int) -> str:
     """Encode an event time for use in a valid column name."""
     prefix = "m" if event_time < 0 else "p"
     return f"{prefix}{abs(event_time)}"
-
-
-def _subevent_regressor_name(event_time: int) -> str:
-    """Return a cohort-model regressor name."""
-    return f"event_{_encode_event_time(event_time)}"
 
 
 def _joint_regressor_name(subevent: int, event_time: int) -> str:
