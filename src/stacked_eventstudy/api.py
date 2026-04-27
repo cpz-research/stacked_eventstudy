@@ -44,7 +44,39 @@ def estimate_stacked_eventstudy(
     backend: str = "statsmodels",
     return_stacked_data: bool = False,
 ) -> StackedEventStudyResult:
-    """Estimate the stacked event-study design."""
+    """Estimate stacked event-study effects with rolling-window controls.
+
+    Args:
+        data: Individual-level panel data.
+        id_col: Column containing the individual identifier.
+        age_col: Column containing age in integer years.
+        treatment_age_col: Column containing age at first birth.
+        outcome_col: Column containing the outcome variable.
+        l_min: Minimum event time to include.
+        l_max: Maximum event time to include.
+        control_window: Number of future-treated cohorts used as controls.
+        reference_event_time: Omitted event time in the event-study design.
+        min_treatment_age: Optional lower bound on treated cohorts to estimate.
+        max_treatment_age: Optional upper bound on treated cohorts to estimate.
+        observed_min_age: Optional minimum observed age used in feasibility checks.
+        calendar_year_col: Optional calendar-year column.
+        covariates: Optional additional covariate columns.
+        weights_col: Optional observation-weight column.
+        cluster_col: Optional clustering column. Defaults to the original individual id.
+        balance: Whether to require complete treated and control support in the
+            requested window.
+        scale: Whether to return raw effects or pre-birth scaled effects.
+        backend: Regression backend name. The current implementation uses
+            `statsmodels`.
+        return_stacked_data: Whether to return the constructed stacked sample.
+
+    Returns:
+        A `StackedEventStudyResult` containing cohort-specific effects, aggregated
+        effects, cohort weights, validation output, and optionally the stacked data.
+
+    Raises:
+        ValueError: If the input data fails validation.
+    """
     config = EstimatorConfig(
         id_col=id_col,
         age_col=age_col,
