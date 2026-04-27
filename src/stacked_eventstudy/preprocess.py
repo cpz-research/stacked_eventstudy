@@ -55,4 +55,6 @@ def keep_admissible_cohorts(
     admissible_cohorts: Sequence[int],
 ) -> pd.DataFrame:
     """Restrict the sample to admissible treated cohorts."""
-    return data.loc[data["treatment_age"].isin(admissible_cohorts)].reset_index(drop=True)
+    return data.loc[data["treatment_age"].isin(admissible_cohorts)].reset_index(
+        drop=True
+    )

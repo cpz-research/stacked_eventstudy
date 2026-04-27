@@ -4,7 +4,10 @@ from collections.abc import Sequence
 
 import pandas as pd
 
-from stacked_eventstudy.aggregation import aggregate_cohort_params, compute_cohort_weights
+from stacked_eventstudy.aggregation import (
+    aggregate_cohort_params,
+    compute_cohort_weights,
+)
 from stacked_eventstudy.estimation import (
     estimate_cohort_models,
     estimate_joint_stacked_model,
@@ -19,7 +22,10 @@ from stacked_eventstudy.scaling import (
 from stacked_eventstudy.stacking import build_stacked_data
 from stacked_eventstudy.types import EstimatorConfig, StackedEventStudyResult
 from stacked_eventstudy.utils import coerce_covariates
-from stacked_eventstudy.validate import _validate_with_config, validate_stacked_eventstudy
+from stacked_eventstudy.validate import (
+    _validate_with_config,
+    validate_stacked_eventstudy,
+)
 
 
 def estimate_stacked_eventstudy(
@@ -82,7 +88,9 @@ def estimate_stacked_eventstudy(
     panel = keep_admissible_cohorts(data=panel, admissible_cohorts=admissible_cohorts)
     stacked_data = build_stacked_data(data=panel, config=config, validation=validation)
 
-    cohort_params, model_summaries = estimate_cohort_models(stacked_data=stacked_data, config=config)
+    cohort_params, model_summaries = estimate_cohort_models(
+        stacked_data=stacked_data, config=config
+    )
     joint_model = estimate_joint_stacked_model(stacked_data=stacked_data, config=config)
     covariance_by_event_time = extract_joint_covariance_by_event_time(
         fitted_model=joint_model,
