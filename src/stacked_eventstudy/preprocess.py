@@ -1,7 +1,5 @@
 """Data preprocessing for estimation."""
 
-from collections.abc import Sequence
-
 import pandas as pd
 
 from stacked_eventstudy.types import EstimatorConfig
@@ -48,11 +46,3 @@ def prepare_panel_data(data: pd.DataFrame, config: EstimatorConfig) -> pd.DataFr
     panel["event_time_own"] = panel["age"] - panel["treatment_age"]
     panel = panel.sort_values(["unit_id", "age"]).reset_index(drop=True)
     return panel
-
-
-def keep_admissible_cohorts(
-    data: pd.DataFrame,
-    admissible_cohorts: Sequence[int],
-) -> pd.DataFrame:
-    """Restrict the sample to admissible treated cohorts."""
-    return data.loc[data["treatment_age"].isin(admissible_cohorts)].reset_index(drop=True)

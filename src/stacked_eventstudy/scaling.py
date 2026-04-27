@@ -33,19 +33,18 @@ def scale_cohort_params(
 
 
 def scale_covariance_by_event_time(
-    covariance_by_event_time: dict[int, pd.DataFrame],
+    parameter_covariance: pd.DataFrame,
     pre_birth_levels: pd.DataFrame,
-) -> dict[int, pd.DataFrame]:
-    """Scale covariance blocks using cohort-specific pre-birth levels."""
-    scaled_covariance: dict[int, pd.DataFrame] = {}
+) -> pd.DataFrame:
+    """Scale the joint covariance matrix using cohort-specific pre-birth levels."""
     denominator_map = pre_birth_levels.set_index("subevent")["pre_birth_level"]
-    for event_time, covariance_block in covariance_by_event_time.items():
-        subevents = covariance_block.index
-        denominators = denominator_map.reindex(subevents)
-        scale_matrix = pd.DataFrame(
-            1.0 / (denominators.to_numpy()[:, None] * denominators.to_numpy()[None, :]),
-            index=subevents,
-            columns=subevents,
-        )
-        scaled_covariance[event_time] = covariance_block * scale_matrix
-    return scaled_covariance
+    row_subevents = parameter_covariance.index.get_level_values("subevent")
+    column_subevents = parameter_covariance.columns.get_level_values("subevent")
+    row_denominators = denominator_map.reindex(row_subevents).to_numpy()
+    column_denominators = denominator_map.reindex(column_subevents).to_numpy()
+    scale_matrix = pd.DataFrame(
+        1.0 / (row_denominators[:, None] * column_denominators[None, :]),
+        index=parameter_covariance.index,
+        columns=parameter_covariance.columns,
+    )
+    return parameter_covariance * scale_matrix

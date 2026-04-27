@@ -6,11 +6,11 @@ import pandas as pd
 
 from stacked_eventstudy.aggregation import aggregate_cohort_params, compute_cohort_weights
 from stacked_eventstudy.estimation import (
-    estimate_cohort_models,
     estimate_joint_stacked_model,
-    extract_joint_covariance_by_event_time,
+    extract_cohort_params_from_joint_model,
+    extract_joint_parameter_covariance,
 )
-from stacked_eventstudy.preprocess import keep_admissible_cohorts, prepare_panel_data
+from stacked_eventstudy.preprocess import prepare_panel_data
 from stacked_eventstudy.scaling import (
     compute_pre_birth_levels,
     scale_cohort_params,
@@ -44,7 +44,39 @@ def estimate_stacked_eventstudy(
     backend: str = "statsmodels",
     return_stacked_data: bool = False,
 ) -> StackedEventStudyResult:
-    """Estimate the stacked event-study design."""
+    """Estimate stacked event-study effects with rolling-window controls.
+
+    Args:
+        data: Individual-level panel data.
+        id_col: Column containing the individual identifier.
+        age_col: Column containing age in integer years.
+        treatment_age_col: Column containing age at first birth.
+        outcome_col: Column containing the outcome variable.
+        l_min: Minimum event time to include.
+        l_max: Maximum event time to include.
+        control_window: Number of future-treated cohorts used as controls.
+        reference_event_time: Omitted event time in the event-study design.
+        min_treatment_age: Optional lower bound on treated cohorts to estimate.
+        max_treatment_age: Optional upper bound on treated cohorts to estimate.
+        observed_min_age: Optional minimum observed age used in feasibility checks.
+        calendar_year_col: Optional calendar-year column.
+        covariates: Optional additional covariate columns.
+        weights_col: Optional observation-weight column.
+        cluster_col: Optional clustering column. Defaults to the original individual id.
+        balance: Whether to require complete treated and control support in the
+            requested window.
+        scale: Whether to return raw effects or pre-birth scaled effects.
+        backend: Regression backend name. The current implementation uses
+            `statsmodels`.
+        return_stacked_data: Whether to return the constructed stacked sample.
+
+    Returns:
+        A `StackedEventStudyResult` containing cohort-specific effects, aggregated
+        effects, cohort weights, validation output, and optionally the stacked data.
+
+    Raises:
+        ValueError: If the input data fails validation.
+    """
     config = EstimatorConfig(
         id_col=id_col,
         age_col=age_col,
@@ -72,19 +104,15 @@ def estimate_stacked_eventstudy(
         raise ValueError(msg)
 
     panel = prepare_panel_data(data=data, config=config)
-    admissible_cohorts = tuple(
-        int(value)
-        for value in validation.cohort_diagnostics.loc[
-            validation.cohort_diagnostics["admissible"],
-            "subevent",
-        ].tolist()
-    )
-    panel = keep_admissible_cohorts(data=panel, admissible_cohorts=admissible_cohorts)
     stacked_data = build_stacked_data(data=panel, config=config, validation=validation)
 
-    cohort_params, model_summaries = estimate_cohort_models(stacked_data=stacked_data, config=config)
     joint_model = estimate_joint_stacked_model(stacked_data=stacked_data, config=config)
-    covariance_by_event_time = extract_joint_covariance_by_event_time(
+    cohort_params = extract_cohort_params_from_joint_model(
+        fitted_model=joint_model,
+        stacked_data=stacked_data,
+        config=config,
+    )
+    parameter_covariance = extract_joint_parameter_covariance(
         fitted_model=joint_model,
         cohort_params=cohort_params,
         config=config,
@@ -107,8 +135,8 @@ def estimate_stacked_eventstudy(
             cohort_params=cohort_params,
             pre_birth_levels=pre_birth_levels,
         )
-        covariance_by_event_time = scale_covariance_by_event_time(
-            covariance_by_event_time=covariance_by_event_time,
+        parameter_covariance = scale_covariance_by_event_time(
+            parameter_covariance=parameter_covariance,
             pre_birth_levels=pre_birth_levels,
         )
 
@@ -122,7 +150,7 @@ def estimate_stacked_eventstudy(
     average_params, vcov_average = aggregate_cohort_params(
         cohort_params=cohort_params,
         cohort_weights=cohort_weights,
-        covariance_by_event_time=covariance_by_event_time,
+        parameter_covariance=parameter_covariance,
     )
 
     if scale == "pre_birth":
@@ -134,7 +162,7 @@ def estimate_stacked_eventstudy(
         cohort_weights=cohort_weights,
         vcov_average=vcov_average,
         config=config,
-        model_summaries=model_summaries,
+        model_summaries={"joint": joint_model},
         validation=validation,
         stacked_data=stacked_data if return_stacked_data else None,
     )
