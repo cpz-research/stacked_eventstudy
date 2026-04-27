@@ -47,3 +47,29 @@ def test_estimate_stacked_eventstudy_returns_square_vcov(
     assert list(result.vcov_average.index) == event_times
     assert list(result.vcov_average.columns) == event_times
     assert result.vcov_average.shape[0] == result.vcov_average.shape[1]
+
+
+def test_later_subevents_keep_future_treated_controls(
+    two_cohort_panel: pd.DataFrame,
+) -> None:
+    """Keep non-admissible later cohorts in the stack as controls when needed."""
+    result = estimate_stacked_eventstudy(
+        data=two_cohort_panel,
+        id_col="id",
+        age_col="age",
+        treatment_age_col="treatment_age",
+        outcome_col="outcome",
+        l_min=-2,
+        l_max=1,
+        control_window=2,
+        reference_event_time=-1,
+        calendar_year_col="calendar_year",
+        return_stacked_data=True,
+    )
+    assert result.stacked_data is not None
+    later_subevent_controls = result.stacked_data.loc[
+        (result.stacked_data["subevent"] == 26)
+        & (result.stacked_data["treated_in_subevent"] == 0),
+        "treatment_age",
+    ]
+    assert set(later_subevent_controls) == {27, 28}

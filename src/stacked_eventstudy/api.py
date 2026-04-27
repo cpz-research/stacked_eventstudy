@@ -10,7 +10,7 @@ from stacked_eventstudy.estimation import (
     estimate_joint_stacked_model,
     extract_joint_parameter_covariance,
 )
-from stacked_eventstudy.preprocess import keep_admissible_cohorts, prepare_panel_data
+from stacked_eventstudy.preprocess import prepare_panel_data
 from stacked_eventstudy.scaling import (
     compute_pre_birth_levels,
     scale_cohort_params,
@@ -79,7 +79,6 @@ def estimate_stacked_eventstudy(
             "subevent",
         ].tolist()
     )
-    panel = keep_admissible_cohorts(data=panel, admissible_cohorts=admissible_cohorts)
     stacked_data = build_stacked_data(data=panel, config=config, validation=validation)
 
     cohort_params, model_summaries = estimate_cohort_models(stacked_data=stacked_data, config=config)
