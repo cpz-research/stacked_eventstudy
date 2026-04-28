@@ -24,6 +24,8 @@ class EstimatorConfig:
     covariates: tuple[str, ...]
     weights_col: str | None
     cluster_col: str | None
+    heterogeneity_col: str | None
+    heterogeneity_weighting: str
     balance: bool
     scale: str
     backend: str
@@ -66,6 +68,8 @@ class StackedEventStudyResult:
         average_params: Aggregated event-study coefficients by event time.
         cohort_weights: Treated cohort weights used in aggregation.
         vcov_average: Covariance matrix for aggregated effects.
+        contrast_params: Pairwise contrasts across heterogeneity groups. Empty when
+            no heterogeneity column is supplied.
         config: Normalized estimator settings.
         model_summaries: Backend model results returned by the estimator.
         validation: Validation output used during estimation.
@@ -76,6 +80,7 @@ class StackedEventStudyResult:
     average_params: pd.DataFrame
     cohort_weights: pd.DataFrame
     vcov_average: pd.DataFrame
+    contrast_params: pd.DataFrame
     config: EstimatorConfig
     model_summaries: dict[str, object]
     validation: StackedEventStudyValidation

@@ -124,6 +124,8 @@ estimate_stacked_eventstudy(
     covariates=(),
     weights_col=None,
     cluster_col=None,
+    heterogeneity_col=None,
+    heterogeneity_weighting="within",
     balance=True,
     scale="none",
     backend="statsmodels",
@@ -137,6 +139,10 @@ Important arguments:
 - `reference_event_time`: omitted event time, usually `-1`
 - `balance`: enforces complete treated and control support in the requested window
 - `backend`: regression backend, either `"statsmodels"` or `"pyfixest"`
+- `heterogeneity_col`: optional categorical, time-invariant column for group-specific
+  effects
+- `heterogeneity_weighting`: group-specific aggregation weights, either `"within"` or
+  `"overall"`
 - `scale="pre_birth"`: rescales effects by the treated cohort's mean outcome at the
   reference period
 - `cluster_col`: overrides default clustering on the original individual id
@@ -220,6 +226,9 @@ One row per `subevent x event_time`, including:
 - `n_treated_obs`
 - `n_control_obs`
 
+When `heterogeneity_col` is supplied, this table also includes `heterogeneity_col` and
+`heterogeneity_value`.
+
 ### `result.average_params`
 
 One row per event time, including:
@@ -232,6 +241,9 @@ One row per event time, including:
 - `n_cohorts`
 - `scale`
 
+When `heterogeneity_col` is supplied, this table is one row per group and event time and
+also includes `heterogeneity_col`, `heterogeneity_value`, and `weight_scheme`.
+
 ### `result.cohort_weights`
 
 One row per admissible treated cohort:
@@ -240,9 +252,18 @@ One row per admissible treated cohort:
 - `n_individuals`
 - `weight`
 
+When `heterogeneity_col` is supplied, weights are returned by group and cohort.
+
 ### `result.vcov_average`
 
 Covariance matrix for the aggregated event-study coefficients, indexed by event time.
+When `heterogeneity_col` is supplied, rows and columns are indexed by
+`heterogeneity_value` and `event_time`.
+
+### `result.contrast_params`
+
+Pairwise group differences for each event time when `heterogeneity_col` is supplied. The
+table is empty otherwise.
 
 ### `result.stacked_data`
 

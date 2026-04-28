@@ -6,7 +6,11 @@ import pandas as pd
 
 from stacked_eventstudy.aggregation import (
     aggregate_cohort_params,
+    aggregate_heterogeneous_cohort_params,
     compute_cohort_weights,
+    compute_heterogeneous_cohort_counts,
+    compute_heterogeneous_cohort_weights,
+    make_empty_contrast_params,
 )
 from stacked_eventstudy.estimation import (
     estimate_joint_stacked_model,
@@ -45,6 +49,8 @@ def estimate_stacked_eventstudy(
     covariates: Sequence[str] = (),
     weights_col: str | None = None,
     cluster_col: str | None = None,
+    heterogeneity_col: str | None = None,
+    heterogeneity_weighting: str = "within",
     balance: bool = True,
     scale: str = "none",
     backend: str = "statsmodels",
@@ -69,6 +75,10 @@ def estimate_stacked_eventstudy(
         covariates: Optional additional covariate columns.
         weights_col: Optional observation-weight column.
         cluster_col: Optional clustering column. Defaults to the original individual id.
+        heterogeneity_col: Optional categorical, time-invariant column for
+            group-specific effects.
+        heterogeneity_weighting: Cohort weighting scheme for group-specific effects.
+            Supported values are `"within"` and `"overall"`.
         balance: Whether to require complete treated and control support in the
             requested window.
         scale: Whether to return raw effects or pre-birth scaled effects.
@@ -78,7 +88,8 @@ def estimate_stacked_eventstudy(
 
     Returns:
         A `StackedEventStudyResult` containing cohort-specific effects, aggregated
-        effects, cohort weights, validation output, and optionally the stacked data.
+        effects, cohort weights, pairwise group contrasts when requested, validation
+        output, and optionally the stacked data.
 
     Raises:
         ValueError: If the input data fails validation.
@@ -99,6 +110,8 @@ def estimate_stacked_eventstudy(
         covariates=coerce_covariates(covariates),
         weights_col=weights_col,
         cluster_col=cluster_col,
+        heterogeneity_col=heterogeneity_col,
+        heterogeneity_weighting=heterogeneity_weighting,
         balance=balance,
         scale=scale,
         backend=backend,
@@ -123,17 +136,25 @@ def estimate_stacked_eventstudy(
         cohort_params=cohort_params,
         config=config,
     )
-    cohort_weights = compute_cohort_weights(stacked_data=stacked_data)
-    cohort_counts = validation.cohort_diagnostics.loc[
-        validation.cohort_diagnostics["admissible"],
-        [
-            "subevent",
-            "n_treated_individuals",
-            "n_control_individuals",
-            "n_treated_obs",
-            "n_control_obs",
-        ],
-    ]
+    if config.heterogeneity_col is None:
+        cohort_weights = compute_cohort_weights(stacked_data=stacked_data)
+        cohort_counts = validation.cohort_diagnostics.loc[
+            validation.cohort_diagnostics["admissible"],
+            [
+                "subevent",
+                "n_treated_individuals",
+                "n_control_individuals",
+                "n_treated_obs",
+                "n_control_obs",
+            ],
+        ]
+    else:
+        cohort_weights = compute_heterogeneous_cohort_weights(
+            stacked_data=stacked_data,
+            weight_scheme=config.heterogeneity_weighting,
+        )
+        cohort_weights["heterogeneity_col"] = config.heterogeneity_col
+        cohort_counts = compute_heterogeneous_cohort_counts(stacked_data=stacked_data)
 
     if scale == "pre_birth":
         pre_birth_levels = compute_pre_birth_levels(data=panel, config=config)
@@ -146,18 +167,35 @@ def estimate_stacked_eventstudy(
             pre_birth_levels=pre_birth_levels,
         )
 
-    cohort_params = cohort_params.merge(
-        cohort_counts,
-        on="subevent",
-        how="left",
-        validate="many_to_one",
-    )
-
-    average_params, vcov_average = aggregate_cohort_params(
-        cohort_params=cohort_params,
-        cohort_weights=cohort_weights,
-        parameter_covariance=parameter_covariance,
-    )
+    if config.heterogeneity_col is None:
+        cohort_params = cohort_params.merge(
+            cohort_counts,
+            on="subevent",
+            how="left",
+            validate="many_to_one",
+        )
+        average_params, vcov_average = aggregate_cohort_params(
+            cohort_params=cohort_params,
+            cohort_weights=cohort_weights,
+            parameter_covariance=parameter_covariance,
+        )
+        contrast_params = make_empty_contrast_params()
+    else:
+        cohort_params = cohort_params.merge(
+            cohort_counts,
+            on=["heterogeneity_value", "subevent"],
+            how="left",
+            validate="many_to_one",
+        )
+        average_params, vcov_average, contrast_params = (
+            aggregate_heterogeneous_cohort_params(
+                cohort_params=cohort_params,
+                cohort_weights=cohort_weights,
+                parameter_covariance=parameter_covariance,
+                heterogeneity_col=config.heterogeneity_col,
+                weight_scheme=config.heterogeneity_weighting,
+            )
+        )
 
     if scale == "pre_birth":
         average_params["scale"] = "pre_birth"
@@ -167,6 +205,7 @@ def estimate_stacked_eventstudy(
         average_params=average_params,
         cohort_weights=cohort_weights,
         vcov_average=vcov_average,
+        contrast_params=contrast_params,
         config=config,
         model_summaries={"joint": joint_model},
         validation=validation,

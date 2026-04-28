@@ -24,6 +24,8 @@ def validate_stacked_eventstudy(
     observed_min_age: int | None = None,
     calendar_year_col: str | None = None,
     covariates: Sequence[str] = (),
+    heterogeneity_col: str | None = None,
+    heterogeneity_weighting: str = "within",
 ) -> StackedEventStudyValidation:
     """Validate stacked event-study inputs and cohort feasibility.
 
@@ -42,6 +44,8 @@ def validate_stacked_eventstudy(
         observed_min_age: Optional minimum observed age used in feasibility checks.
         calendar_year_col: Optional calendar-year column.
         covariates: Optional additional covariate columns.
+        heterogeneity_col: Optional categorical column for group-specific effects.
+        heterogeneity_weighting: Cohort weighting scheme for group-specific effects.
 
     Returns:
         A `StackedEventStudyValidation` object with errors, warnings, cohort-level
@@ -74,6 +78,8 @@ def validate_stacked_eventstudy(
         covariates=coerce_covariates(covariates),
         weights_col=None,
         cluster_col=None,
+        heterogeneity_col=heterogeneity_col,
+        heterogeneity_weighting=heterogeneity_weighting,
         balance=True,
         scale="none",
         backend="statsmodels",
@@ -99,9 +105,16 @@ def _validate_with_config(
     ]
     if config.calendar_year_col is not None:
         required_columns.append(config.calendar_year_col)
+    if config.heterogeneity_col is not None:
+        required_columns.append(config.heterogeneity_col)
     missing_columns = check_missing_columns(data, required_columns)
     if missing_columns:
         errors.append(f"Missing required columns: {', '.join(missing_columns)}.")
+    if (
+        config.heterogeneity_col is not None
+        and config.heterogeneity_col in config.covariates
+    ):
+        errors.append("heterogeneity_col must not also be listed in covariates.")
 
     if errors:
         return StackedEventStudyValidation(
@@ -140,6 +153,14 @@ def _validate_with_config(
     ):
         errors.append("Treatment age must be constant within individual.")
 
+    if config.heterogeneity_col is not None and (
+        panel.groupby("unit_id", sort=False)["heterogeneity_value"]
+        .nunique(dropna=False)
+        .gt(1)
+        .any()
+    ):
+        errors.append("heterogeneity_col must be constant within individual.")
+
     if not _is_integer_like_series(panel["age"]):
         errors.append("Age must be recorded in integer years.")
 
@@ -168,6 +189,8 @@ def _validate_with_config(
         errors.append("l_min must be strictly smaller than l_max.")
     if config.backend not in {"statsmodels", "pyfixest"}:
         errors.append("backend must be either 'statsmodels' or 'pyfixest'.")
+    if config.heterogeneity_weighting not in {"within", "overall"}:
+        errors.append("heterogeneity_weighting must be either 'within' or 'overall'.")
 
     resolved_observed_min_age = (
         int(panel["age"].min())
@@ -405,6 +428,8 @@ def _get_missing_estimation_columns(
         "input_weight",
         "cluster_id",
     ]
+    if config.heterogeneity_col is not None:
+        estimation_columns.append("heterogeneity_value")
     missing_counts = panel.loc[:, estimation_columns].isna().sum()
     return {
         column: int(count) for column, count in missing_counts.items() if int(count) > 0
