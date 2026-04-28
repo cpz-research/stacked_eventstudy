@@ -5,7 +5,9 @@ import pandas as pd
 from stacked_eventstudy.types import EstimatorConfig
 
 
-def compute_pre_birth_levels(data: pd.DataFrame, config: EstimatorConfig) -> pd.DataFrame:
+def compute_pre_birth_levels(
+    data: pd.DataFrame, config: EstimatorConfig
+) -> pd.DataFrame:
     """Compute cohort-specific pre-birth outcome levels for scaling."""
     treated_reference = data.loc[data["event_time_own"] == config.reference_event_time]
     levels = (
@@ -24,7 +26,9 @@ def scale_cohort_params(
     pre_birth_levels: pd.DataFrame,
 ) -> pd.DataFrame:
     """Scale cohort-level effects by pre-birth levels."""
-    merged = cohort_params.merge(pre_birth_levels, on="subevent", how="left", validate="many_to_one")
+    merged = cohort_params.merge(
+        pre_birth_levels, on="subevent", how="left", validate="many_to_one"
+    )
     scaled = merged.copy()
     for column in ["estimate", "std_error", "ci_low", "ci_high"]:
         scaled[column] = scaled[column] / scaled["pre_birth_level"]

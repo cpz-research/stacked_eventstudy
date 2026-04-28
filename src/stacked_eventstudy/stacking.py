@@ -40,7 +40,8 @@ def build_subevent_stack(
     treated["subevent"] = subevent
     treated["event_time"] = treated["age"] - subevent
     treated = treated.loc[
-        (treated["event_time"] >= config.l_min) & (treated["event_time"] <= config.l_max)
+        (treated["event_time"] >= config.l_min)
+        & (treated["event_time"] <= config.l_max)
     ]
     treated["treated_in_subevent"] = 1
 
@@ -51,7 +52,8 @@ def build_subevent_stack(
     controls["subevent"] = subevent
     controls["event_time"] = controls["age"] - subevent
     controls = controls.loc[
-        (controls["event_time"] >= config.l_min) & (controls["event_time"] <= config.l_max)
+        (controls["event_time"] >= config.l_min)
+        & (controls["event_time"] <= config.l_max)
     ]
     controls["treated_in_subevent"] = 0
 

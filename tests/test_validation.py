@@ -100,4 +100,7 @@ def test_validate_rejects_infeasible_window(minimal_panel: pd.DataFrame) -> None
         calendar_year_col="calendar_year",
     )
     assert not result.is_valid
-    assert any("l_max must be less than or equal to control_window - 1." == error for error in result.errors)
+    assert any(
+        error == "l_max must be less than or equal to control_window - 1."
+        for error in result.errors
+    )

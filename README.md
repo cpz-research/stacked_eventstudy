@@ -3,10 +3,10 @@
 `stacked_eventstudy` implements a stacked difference-in-differences estimator with
 rolling-window controls by age at first birth.
 
-The current package is built around the heterogeneity-robust stacked estimator
-described in Melentyeva and Riedel, where each treatment-age cohort is estimated in
-its own stacked subevent and the resulting event-study coefficients are aggregated
-using treated cohort shares.
+The current package is built around the heterogeneity-robust stacked estimator described
+in Melentyeva and Riedel, where each treatment-age cohort is estimated in its own
+stacked subevent and the resulting event-study coefficients are aggregated using treated
+cohort shares.
 
 ## Status
 
@@ -83,8 +83,8 @@ That last point matters:
 The estimator then:
 
 1. runs a cohort-specific regression for each admissible treatment-age cohort
-2. estimates a joint stacked model for covariance extraction
-3. aggregates cohort-specific coefficients using treated cohort shares
+1. estimates a joint stacked model for covariance extraction
+1. aggregates cohort-specific coefficients using treated cohort shares
 
 ## Main functions
 
