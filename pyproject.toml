@@ -11,6 +11,7 @@ requires-python = ">=3.13"
 dependencies = [
   "numpy",
   "pandas",
+  "pyfixest>=0.50.1,<0.51",
   "scipy",
   "statsmodels",
 ]

@@ -118,7 +118,10 @@ def _validate_with_config(
 
     panel = prepare_panel_data(data=data, config=config)
 
-    missing_estimation_columns = _get_missing_estimation_columns(panel=panel, config=config)
+    missing_estimation_columns = _get_missing_estimation_columns(
+        panel=panel,
+        config=config,
+    )
     if missing_estimation_columns:
         errors.append(
             "Estimation columns must be non-missing: "
@@ -163,6 +166,8 @@ def _validate_with_config(
         errors.append("l_max must be less than or equal to control_window - 1.")
     if config.l_min >= config.l_max:
         errors.append("l_min must be strictly smaller than l_max.")
+    if config.backend not in {"statsmodels", "pyfixest"}:
+        errors.append("backend must be either 'statsmodels' or 'pyfixest'.")
 
     resolved_observed_min_age = (
         int(panel["age"].min())
@@ -402,9 +407,7 @@ def _get_missing_estimation_columns(
     ]
     missing_counts = panel.loc[:, estimation_columns].isna().sum()
     return {
-        column: int(count)
-        for column, count in missing_counts.items()
-        if int(count) > 0
+        column: int(count) for column, count in missing_counts.items() if int(count) > 0
     }
 
 

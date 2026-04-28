@@ -136,6 +136,7 @@ Important arguments:
 - `control_window`: width of the future-treated control window
 - `reference_event_time`: omitted event time, usually `-1`
 - `balance`: enforces complete treated and control support in the requested window
+- `backend`: regression backend, either `"statsmodels"` or `"pyfixest"`
 - `scale="pre_birth"`: rescales effects by the treated cohort's mean outcome at the
   reference period
 - `cluster_col`: overrides default clustering on the original individual id
@@ -260,7 +261,7 @@ construction and control alignment.
 
 - Controls are aligned to the treated cohort's event time, not their own.
 - The post-birth horizon is constrained by `control_window`.
-- The package currently uses a `statsmodels` regression backend.
+- Supported regression backends are `statsmodels` and `pyfixest`.
 - There is no conventional benchmark estimator in the current package version.
 - The current implementation is aimed at clean panel inputs and synthetic validation
   first; broader empirical hardening is still ongoing.

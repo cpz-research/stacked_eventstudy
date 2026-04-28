@@ -72,8 +72,8 @@ def estimate_stacked_eventstudy(
         balance: Whether to require complete treated and control support in the
             requested window.
         scale: Whether to return raw effects or pre-birth scaled effects.
-        backend: Regression backend name. The current implementation uses
-            `statsmodels`.
+        backend: Regression backend name. Supported values are `"statsmodels"` and
+            `"pyfixest"`.
         return_stacked_data: Whether to return the constructed stacked sample.
 
     Returns:

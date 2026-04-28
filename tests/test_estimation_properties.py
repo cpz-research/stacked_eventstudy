@@ -2,6 +2,7 @@
 
 from math import isclose
 
+import numpy as np
 import pandas as pd
 import pytest
 
@@ -193,6 +194,40 @@ def test_missing_covariate_rows_fail_validation_before_estimation(
             calendar_year_col="calendar_year",
             covariates=("covariate",),
         )
+
+
+def test_pyfixest_backend_matches_statsmodels_average_effects(
+    heterogeneous_effect_panel: pd.DataFrame,
+) -> None:
+    """Match average effects across supported regression backends."""
+    common_kwargs = {
+        "data": heterogeneous_effect_panel,
+        "id_col": "id",
+        "age_col": "age",
+        "treatment_age_col": "treatment_age",
+        "outcome_col": "outcome",
+        "l_min": -2,
+        "l_max": 1,
+        "control_window": 2,
+        "reference_event_time": -1,
+        "calendar_year_col": "calendar_year",
+    }
+    statsmodels_result = estimate_stacked_eventstudy(
+        **common_kwargs,
+        backend="statsmodels",
+    )
+    pyfixest_result = estimate_stacked_eventstudy(
+        **common_kwargs,
+        backend="pyfixest",
+    )
+
+    assert np.allclose(
+        statsmodels_result.average_params["estimate"],
+        pyfixest_result.average_params["estimate"],
+        atol=1e-10,
+        rtol=0.0,
+    )
+    assert pyfixest_result.model_summaries["joint"].__class__.__name__ == "Feols"
 
 
 def test_result_tables_expose_expected_columns(

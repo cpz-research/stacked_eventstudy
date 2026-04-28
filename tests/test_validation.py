@@ -1,8 +1,9 @@
 """Validation tests."""
 
 import pandas as pd
+import pytest
 
-from stacked_eventstudy import validate_stacked_eventstudy
+from stacked_eventstudy import estimate_stacked_eventstudy, validate_stacked_eventstudy
 
 
 def test_validate_reports_valid_panel(minimal_panel: pd.DataFrame) -> None:
@@ -104,3 +105,24 @@ def test_validate_rejects_infeasible_window(minimal_panel: pd.DataFrame) -> None
         error == "l_max must be less than or equal to control_window - 1."
         for error in result.errors
     )
+
+
+def test_estimate_rejects_unknown_backend(minimal_panel: pd.DataFrame) -> None:
+    """Reject unsupported regression backends."""
+    with pytest.raises(
+        ValueError,
+        match="backend must be either 'statsmodels' or 'pyfixest'",
+    ):
+        estimate_stacked_eventstudy(
+            data=minimal_panel,
+            id_col="id",
+            age_col="age",
+            treatment_age_col="treatment_age",
+            outcome_col="outcome",
+            l_min=-2,
+            l_max=1,
+            control_window=2,
+            reference_event_time=-1,
+            calendar_year_col="calendar_year",
+            backend="unknown",
+        )
