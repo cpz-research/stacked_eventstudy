@@ -4,9 +4,12 @@
 rolling-window controls by age at first birth.
 
 The current package is built around the heterogeneity-robust stacked estimator described
-in Melentyeva and Riedel, where each treatment-age cohort is estimated in its own
+in Melentyeva and Riedel (2025), where each treatment-age cohort is estimated in its own
 stacked subevent and the resulting event-study coefficients are aggregated using treated
 cohort shares.
+
+The code is not yet checked against the code of the authors (as there is no replication
+code available as of now).
 
 ## Status
 
@@ -124,7 +127,8 @@ estimate_stacked_eventstudy(
     covariates=(),
     weights_col=None,
     cluster_col=None,
-    balance=True,
+    heterogeneity_col=None,
+    heterogeneity_weighting="within",
     scale="none",
     backend="statsmodels",
     return_stacked_data=False,
@@ -135,10 +139,17 @@ Important arguments:
 
 - `control_window`: width of the future-treated control window
 - `reference_event_time`: omitted event time, usually `-1`
-- `balance`: enforces complete treated and control support in the requested window
+- `backend`: regression backend, either `"statsmodels"` or `"pyfixest"`
+- `heterogeneity_col`: optional categorical, time-invariant column for group-specific
+  effects
+- `heterogeneity_weighting`: group-specific aggregation weights, either `"within"` or
+  `"overall"`
 - `scale="pre_birth"`: rescales effects by the treated cohort's mean outcome at the
   reference period
 - `cluster_col`: overrides default clustering on the original individual id
+
+The estimator always requires complete treated and control support in the requested
+event-time window for an admissible cohort.
 
 ## Quick start
 
@@ -172,6 +183,9 @@ validation = validate_stacked_eventstudy(
     reference_event_time=-1,
     calendar_year_col="calendar_year",
 )
+
+print("Validation status:", validation.is_valid)
+print("Validation errors:", validation.errors)
 
 if validation.is_valid:
     result = estimate_stacked_eventstudy(
@@ -216,6 +230,9 @@ One row per `subevent x event_time`, including:
 - `n_treated_obs`
 - `n_control_obs`
 
+When `heterogeneity_col` is supplied, this table also includes `heterogeneity_col` and
+`heterogeneity_value`.
+
 ### `result.average_params`
 
 One row per event time, including:
@@ -228,6 +245,9 @@ One row per event time, including:
 - `n_cohorts`
 - `scale`
 
+When `heterogeneity_col` is supplied, this table is one row per group and event time and
+also includes `heterogeneity_col`, `heterogeneity_value`, and `weight_scheme`.
+
 ### `result.cohort_weights`
 
 One row per admissible treated cohort:
@@ -236,9 +256,18 @@ One row per admissible treated cohort:
 - `n_individuals`
 - `weight`
 
+When `heterogeneity_col` is supplied, weights are returned by group and cohort.
+
 ### `result.vcov_average`
 
 Covariance matrix for the aggregated event-study coefficients, indexed by event time.
+When `heterogeneity_col` is supplied, rows and columns are indexed by
+`heterogeneity_value` and `event_time`.
+
+### `result.contrast_params`
+
+Pairwise group differences for each event time when `heterogeneity_col` is supplied. The
+table is empty otherwise.
 
 ### `result.stacked_data`
 
@@ -257,7 +286,7 @@ construction and control alignment.
 
 - Controls are aligned to the treated cohort's event time, not their own.
 - The post-birth horizon is constrained by `control_window`.
-- The package currently uses a `statsmodels` regression backend.
+- Supported regression backends are `statsmodels` and `pyfixest`.
 - There is no conventional benchmark estimator in the current package version.
 - The current implementation is aimed at clean panel inputs and synthetic validation
   first; broader empirical hardening is still ongoing.
@@ -269,3 +298,14 @@ Run the included example with:
 ```bash
 PYTHONPATH=src pixi run python examples/basic_usage.py
 ```
+
+Run the heterogeneity example with:
+
+```bash
+PYTHONPATH=src pixi run python examples/heterogeneity_usage.py
+```
+
+## Reference
+
+Melentyeva, V., & Riedel, L. (2025). Child penalty estimation and mothers' age at first
+birth (No. 25-033). ZEW Discussion Papers.

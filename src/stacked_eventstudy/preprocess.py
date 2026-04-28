@@ -14,12 +14,13 @@ def prepare_panel_data(data: pd.DataFrame, config: EstimatorConfig) -> pd.DataFr
         config.outcome_col,
         *config.covariates,
     ]
-    if config.calendar_year_col is not None:
-        selected_columns.append(config.calendar_year_col)
-    if config.weights_col is not None:
-        selected_columns.append(config.weights_col)
-    if config.cluster_col is not None and config.cluster_col not in selected_columns:
-        selected_columns.append(config.cluster_col)
+    for column in (
+        config.calendar_year_col,
+        config.heterogeneity_col,
+        config.weights_col,
+        config.cluster_col,
+    ):
+        _append_column_if_present(columns=selected_columns, column=column)
 
     panel = data.loc[:, selected_columns].copy()
     renamed_columns = {
@@ -28,12 +29,26 @@ def prepare_panel_data(data: pd.DataFrame, config: EstimatorConfig) -> pd.DataFr
         config.treatment_age_col: "treatment_age",
         config.outcome_col: "outcome",
     }
-    if config.calendar_year_col is not None:
-        renamed_columns[config.calendar_year_col] = "calendar_year"
-    if config.weights_col is not None:
-        renamed_columns[config.weights_col] = "input_weight"
-    if config.cluster_col is not None:
-        renamed_columns[config.cluster_col] = "cluster_id"
+    _add_optional_rename(
+        renamed_columns=renamed_columns,
+        source=config.calendar_year_col,
+        target="calendar_year",
+    )
+    _add_optional_rename(
+        renamed_columns=renamed_columns,
+        source=config.heterogeneity_col,
+        target="heterogeneity_value",
+    )
+    _add_optional_rename(
+        renamed_columns=renamed_columns,
+        source=config.weights_col,
+        target="input_weight",
+    )
+    _add_optional_rename(
+        renamed_columns=renamed_columns,
+        source=config.cluster_col,
+        target="cluster_id",
+    )
 
     panel = panel.rename(columns=renamed_columns)
 
@@ -44,5 +59,20 @@ def prepare_panel_data(data: pd.DataFrame, config: EstimatorConfig) -> pd.DataFr
         panel["input_weight"] = 1.0
 
     panel["event_time_own"] = panel["age"] - panel["treatment_age"]
-    panel = panel.sort_values(["unit_id", "age"]).reset_index(drop=True)
-    return panel
+    return panel.sort_values(["unit_id", "age"]).reset_index(drop=True)
+
+
+def _append_column_if_present(columns: list[str], column: str | None) -> None:
+    """Append a non-missing column once."""
+    if column is not None and column not in columns:
+        columns.append(column)
+
+
+def _add_optional_rename(
+    renamed_columns: dict[str, str],
+    source: str | None,
+    target: str,
+) -> None:
+    """Add a rename entry when the source column exists."""
+    if source is not None:
+        renamed_columns[source] = target
