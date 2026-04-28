@@ -22,7 +22,6 @@ CONTRAST_COLUMNS = [
     "ci_high",
     "p_value",
 ]
-WEIGHT_SUM_TOLERANCE = 1e-10
 
 
 def compute_cohort_weights(stacked_data: pd.DataFrame) -> pd.DataFrame:
@@ -95,11 +94,10 @@ def compute_heterogeneous_cohort_counts(stacked_data: pd.DataFrame) -> pd.DataFr
         )
         .merge(treated_observations, on=keys, how="outer", validate="one_to_one")
         .merge(control_observations, on=keys, how="outer", validate="one_to_one")
-        .fillna(0)
         .sort_values(keys)
         .reset_index(drop=True)
     )
-    counts[count_columns] = counts[count_columns].astype(int)
+    counts[count_columns] = counts[count_columns].fillna(0).astype(int)
     return counts
 
 
@@ -370,13 +368,12 @@ def _get_heterogeneous_event_params(
     if event_params["weight"].isna().any():
         msg = "Missing heterogeneity cohort weights."
         raise ValueError(msg)
-    weight_sum = float(event_params["weight"].sum())
-    if abs(weight_sum - 1.0) > WEIGHT_SUM_TOLERANCE:
-        msg = (
-            "Heterogeneity cohort weights must sum to one for each group and event "
-            f"time; got {weight_sum}."
-        )
+    event_params = event_params.rename(columns={"weight": "raw_weight"})
+    raw_weight_sum = float(event_params["raw_weight"].sum())
+    if raw_weight_sum <= 0:
+        msg = "Heterogeneity cohort weights must have positive available weight."
         raise ValueError(msg)
+    event_params["weight"] = event_params["raw_weight"] / raw_weight_sum
     return event_params
 
 

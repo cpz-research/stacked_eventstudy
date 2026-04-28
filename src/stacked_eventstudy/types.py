@@ -26,7 +26,6 @@ class EstimatorConfig:
     cluster_col: str | None
     heterogeneity_col: str | None
     heterogeneity_weighting: str
-    balance: bool
     scale: str
     backend: str
     return_stacked_data: bool

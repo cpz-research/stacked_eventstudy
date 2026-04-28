@@ -80,7 +80,6 @@ def validate_stacked_eventstudy(
         cluster_col=None,
         heterogeneity_col=heterogeneity_col,
         heterogeneity_weighting=heterogeneity_weighting,
-        balance=True,
         scale="none",
         backend="statsmodels",
         return_stacked_data=False,
@@ -368,9 +367,12 @@ def _diagnose_cohorts(
         has_rolling_controls = not controls.empty
         treated_complete = required_treated_event_times.issubset(treated_coverage)
         controls_complete = required_control_event_times.issubset(control_coverage)
-        admissible = in_requested_range and has_rolling_controls and treated_complete
-        if config.balance:
-            admissible = admissible and controls_complete
+        admissible = (
+            in_requested_range
+            and has_rolling_controls
+            and treated_complete
+            and controls_complete
+        )
 
         drop_reason = ""
         if not in_requested_range:
@@ -379,8 +381,8 @@ def _diagnose_cohorts(
             drop_reason = "no_rolling_window_controls"
         elif not treated_complete:
             drop_reason = "missing_treated_event_times"
-        elif config.balance and not controls_complete:
-            drop_reason = "fails_balance_requirement"
+        elif not controls_complete:
+            drop_reason = "missing_control_event_times"
 
         rows.append(
             {

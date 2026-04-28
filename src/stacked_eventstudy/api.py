@@ -51,7 +51,6 @@ def estimate_stacked_eventstudy(
     cluster_col: str | None = None,
     heterogeneity_col: str | None = None,
     heterogeneity_weighting: str = "within",
-    balance: bool = True,
     scale: str = "none",
     backend: str = "statsmodels",
     return_stacked_data: bool = False,
@@ -79,8 +78,6 @@ def estimate_stacked_eventstudy(
             group-specific effects.
         heterogeneity_weighting: Cohort weighting scheme for group-specific effects.
             Supported values are `"within"` and `"overall"`.
-        balance: Whether to require complete treated and control support in the
-            requested window.
         scale: Whether to return raw effects or pre-birth scaled effects.
         backend: Regression backend name. Supported values are `"statsmodels"` and
             `"pyfixest"`.
@@ -112,7 +109,6 @@ def estimate_stacked_eventstudy(
         cluster_col=cluster_col,
         heterogeneity_col=heterogeneity_col,
         heterogeneity_weighting=heterogeneity_weighting,
-        balance=balance,
         scale=scale,
         backend=backend,
         return_stacked_data=return_stacked_data,

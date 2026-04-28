@@ -7,6 +7,7 @@ import pandas as pd
 import pytest
 
 from stacked_eventstudy import estimate_stacked_eventstudy
+from stacked_eventstudy.aggregation import aggregate_heterogeneous_cohort_params
 
 
 def test_zero_effect_panel_recovers_near_zero_effects(
@@ -273,6 +274,32 @@ def test_heterogeneity_col_recovers_group_specific_average_effects(
     assert result.vcov_average.index.names == ["heterogeneity_value", "event_time"]
 
 
+def test_heterogeneity_col_accepts_categorical_dtype(
+    grouped_effect_panel: pd.DataFrame,
+) -> None:
+    """Support pandas categorical heterogeneity columns."""
+    data = grouped_effect_panel.copy()
+    data["segment"] = pd.Categorical(data["segment"])
+
+    result = estimate_stacked_eventstudy(
+        data=data,
+        id_col="id",
+        age_col="age",
+        treatment_age_col="treatment_age",
+        outcome_col="outcome",
+        l_min=-2,
+        l_max=1,
+        control_window=2,
+        reference_event_time=-1,
+        calendar_year_col="calendar_year",
+        heterogeneity_col="segment",
+        backend="pyfixest",
+    )
+
+    assert set(result.average_params["heterogeneity_value"]) == {"a", "b", "c"}
+    assert not result.contrast_params.empty
+
+
 def test_heterogeneity_overall_weighting_uses_common_cohort_weights(
     uneven_grouped_effect_panel: pd.DataFrame,
 ) -> None:
@@ -302,6 +329,66 @@ def test_heterogeneity_overall_weighting_uses_common_cohort_weights(
             abs_tol=1e-10,
         )
         assert row.weight_scheme == "overall"
+
+
+def test_heterogeneous_aggregation_allows_available_weights_below_one() -> None:
+    """Renormalize event-specific available weights below one."""
+    cohort_params = pd.DataFrame(
+        {
+            "heterogeneity_col": ["segment"],
+            "heterogeneity_value": ["a"],
+            "subevent": [25],
+            "event_time": [0],
+            "estimate": [1.0],
+            "scale": ["none"],
+        },
+    )
+    cohort_weights = pd.DataFrame(
+        {
+            "heterogeneity_value": ["a"],
+            "subevent": [25],
+            "n_individuals": [1],
+            "weight": [0.9974160206718347],
+            "weight_scheme": ["within"],
+        },
+    )
+    parameter_covariance = pd.DataFrame(
+        [[0.25]],
+        index=pd.MultiIndex.from_tuples(
+            [("a", 0, 25)],
+            names=["heterogeneity_value", "event_time", "subevent"],
+        ),
+        columns=pd.MultiIndex.from_tuples(
+            [("a", 0, 25)],
+            names=["heterogeneity_value", "event_time", "subevent"],
+        ),
+    )
+
+    average_params, vcov_average, contrast_params = (
+        aggregate_heterogeneous_cohort_params(
+            cohort_params=cohort_params,
+            cohort_weights=cohort_weights,
+            parameter_covariance=parameter_covariance,
+            heterogeneity_col="segment",
+            weight_scheme="within",
+        )
+    )
+
+    assert not average_params.empty
+    assert isclose(
+        average_params.loc[0, "estimate"],
+        1.0,
+        rel_tol=0.0,
+        abs_tol=1e-12,
+    )
+    assert isclose(
+        average_params.loc[0, "std_error"],
+        0.5,
+        rel_tol=0.0,
+        abs_tol=1e-12,
+    )
+    assert vcov_average.shape == (1, 1)
+    assert contrast_params.empty
 
 
 def test_heterogeneity_pyfixest_backend_matches_statsmodels(

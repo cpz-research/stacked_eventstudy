@@ -204,6 +204,36 @@ def test_validate_rejects_infeasible_window(minimal_panel: pd.DataFrame) -> None
     )
 
 
+def test_validate_requires_complete_control_event_window(
+    minimal_panel: pd.DataFrame,
+) -> None:
+    """Require complete control support in the requested event-time window."""
+    missing_aligned_control_age = 24
+    incomplete_controls = minimal_panel.loc[
+        ~(
+            (minimal_panel["treatment_age"].isin([26, 27]))
+            & (minimal_panel["age"] == missing_aligned_control_age)
+        ),
+    ]
+    result = validate_stacked_eventstudy(
+        data=incomplete_controls,
+        id_col="id",
+        age_col="age",
+        treatment_age_col="treatment_age",
+        outcome_col="outcome",
+        l_min=-2,
+        l_max=1,
+        control_window=2,
+        reference_event_time=-1,
+        calendar_year_col="calendar_year",
+    )
+
+    assert not result.is_valid
+    assert "missing_control_event_times" in set(
+        result.cohort_diagnostics["drop_reason"],
+    )
+
+
 def test_estimate_rejects_unknown_backend(minimal_panel: pd.DataFrame) -> None:
     """Reject unsupported regression backends."""
     with pytest.raises(
