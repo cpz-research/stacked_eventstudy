@@ -25,7 +25,32 @@ def validate_stacked_eventstudy(
     calendar_year_col: str | None = None,
     covariates: Sequence[str] = (),
 ) -> StackedEventStudyValidation:
-    """Validate stacked event-study inputs and cohort feasibility."""
+    """Validate stacked event-study inputs and cohort feasibility.
+
+    Args:
+        data: Individual-level panel data.
+        id_col: Column containing the individual identifier.
+        age_col: Column containing age in integer years.
+        treatment_age_col: Column containing age at first birth.
+        outcome_col: Column containing the outcome variable.
+        l_min: Minimum event time to validate.
+        l_max: Maximum event time to validate.
+        control_window: Number of future-treated cohorts used as controls.
+        reference_event_time: Omitted event time in the event-study design.
+        min_treatment_age: Optional lower bound on treated cohorts to estimate.
+        max_treatment_age: Optional upper bound on treated cohorts to estimate.
+        observed_min_age: Optional minimum observed age used in feasibility checks.
+        calendar_year_col: Optional calendar-year column.
+        covariates: Optional additional covariate columns.
+
+    Returns:
+        A `StackedEventStudyValidation` object with errors, warnings, cohort-level
+        diagnostics, and sample-level feasibility summaries.
+
+    Raises:
+        TypeError: If `data` is not a pandas DataFrame.
+        ValueError: If the input has duplicate column names.
+    """
     if not isinstance(data, pd.DataFrame):
         msg = "data must be a pandas DataFrame."
         raise TypeError(msg)
