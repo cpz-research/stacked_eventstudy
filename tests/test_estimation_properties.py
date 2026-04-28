@@ -42,7 +42,9 @@ def test_aggregation_matches_weighted_cohort_average(
         reference_event_time=-1,
         calendar_year_col="calendar_year",
     )
-    assert isclose(result.cohort_weights["weight"].sum(), 1.0, rel_tol=0.0, abs_tol=1e-12)
+    assert isclose(
+        result.cohort_weights["weight"].sum(), 1.0, rel_tol=0.0, abs_tol=1e-12
+    )
 
     merged = result.cohort_params.merge(
         result.cohort_weights,
@@ -56,7 +58,9 @@ def test_aggregation_matches_weighted_cohort_average(
         .sum()
         .rename(columns={"weighted_estimate": "manual_estimate"})
     )
-    comparison = result.average_params.merge(manual_average, on="event_time", how="left")
+    comparison = result.average_params.merge(
+        manual_average, on="event_time", how="left"
+    )
     assert (comparison["estimate"] - comparison["manual_estimate"]).abs().max() < 1e-10
 
 
@@ -99,30 +103,31 @@ def test_pre_birth_scaling_matches_manual_scaling(
         .mean()
         .rename(columns={"treatment_age": "subevent", "outcome": "pre_birth_level"})
     )
-    manual_scaled = (
-        unscaled_result.cohort_params.merge(
-            pre_birth_levels,
-            on="subevent",
-            how="left",
-            validate="many_to_one",
-        )
-        .merge(
-            unscaled_result.cohort_weights,
-            on="subevent",
-            how="left",
-            validate="many_to_one",
-        )
+    manual_scaled = unscaled_result.cohort_params.merge(
+        pre_birth_levels,
+        on="subevent",
+        how="left",
+        validate="many_to_one",
+    ).merge(
+        unscaled_result.cohort_weights,
+        on="subevent",
+        how="left",
+        validate="many_to_one",
     )
     manual_scaled["scaled_estimate"] = (
         manual_scaled["estimate"] / manual_scaled["pre_birth_level"]
     )
     manual_average = (
-        manual_scaled.assign(weighted_estimate=manual_scaled["scaled_estimate"] * manual_scaled["weight"])
+        manual_scaled.assign(
+            weighted_estimate=manual_scaled["scaled_estimate"] * manual_scaled["weight"]
+        )
         .groupby("event_time", as_index=False)["weighted_estimate"]
         .sum()
         .rename(columns={"weighted_estimate": "manual_estimate"})
     )
-    comparison = scaled_result.average_params.merge(manual_average, on="event_time", how="left")
+    comparison = scaled_result.average_params.merge(
+        manual_average, on="event_time", how="left"
+    )
     assert set(scaled_result.average_params["scale"]) == {"pre_birth"}
     assert (comparison["estimate"] - comparison["manual_estimate"]).abs().max() < 1e-10
 

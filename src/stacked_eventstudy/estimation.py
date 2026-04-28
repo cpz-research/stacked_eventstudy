@@ -5,6 +5,7 @@ import pandas as pd
 from stacked_eventstudy.types import EstimatorConfig
 from stacked_eventstudy.utils import make_confidence_interval
 
+
 def estimate_joint_stacked_model(
     stacked_data: pd.DataFrame,
     config: EstimatorConfig,
@@ -28,7 +29,9 @@ def extract_cohort_params_from_joint_model(
     """Extract cohort-specific event-time coefficients from the joint model."""
     rows: list[dict[str, object]] = []
     cohort_event_pairs = (
-        stacked_data.loc[stacked_data["treated_in_subevent"] == 1, ["subevent", "event_time"]]
+        stacked_data.loc[
+            stacked_data["treated_in_subevent"] == 1, ["subevent", "event_time"]
+        ]
         .drop_duplicates()
         .sort_values(["subevent", "event_time"])
         .itertuples(index=False, name=None)
@@ -36,7 +39,9 @@ def extract_cohort_params_from_joint_model(
     for subevent, event_time in cohort_event_pairs:
         if int(event_time) == config.reference_event_time:
             continue
-        term_label = _joint_regressor_name(subevent=int(subevent), event_time=int(event_time))
+        term_label = _joint_regressor_name(
+            subevent=int(subevent), event_time=int(event_time)
+        )
         if term_label not in fitted_model.params.index:
             continue
         estimate = float(fitted_model.params.loc[term_label])
@@ -56,7 +61,11 @@ def extract_cohort_params_from_joint_model(
                 "scale": "none",
             },
         )
-    return pd.DataFrame(rows).sort_values(["subevent", "event_time"]).reset_index(drop=True)
+    return (
+        pd.DataFrame(rows)
+        .sort_values(["subevent", "event_time"])
+        .reset_index(drop=True)
+    )
 
 
 def extract_joint_parameter_covariance(
@@ -102,6 +111,7 @@ def _fit_formula_model(
         model = smf.wls(formula=formula, data=data, weights=weights)
     return model.fit(**fit_kwargs)
 
+
 def _make_joint_formula(data: pd.DataFrame, config: EstimatorConfig) -> str:
     """Create the joint stacked formula."""
     regressor_terms = [
@@ -116,6 +126,7 @@ def _make_joint_formula(data: pd.DataFrame, config: EstimatorConfig) -> str:
         *config.covariates,
     ]
     return "outcome ~ 0 + " + " + ".join(base_terms)
+
 
 def _add_joint_regressors(data: pd.DataFrame, config: EstimatorConfig) -> pd.DataFrame:
     """Add explicit cohort-by-event-time indicators to the full stack."""
