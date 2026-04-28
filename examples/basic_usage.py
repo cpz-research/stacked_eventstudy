@@ -43,6 +43,7 @@ def main() -> None:
     )
 
     print("Validation status:", validation.is_valid)
+    print("Validation errors:", validation.errors)
     print(validation.cohort_diagnostics)
 
     result = estimate_stacked_eventstudy(

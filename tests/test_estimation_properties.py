@@ -3,6 +3,7 @@
 from math import isclose
 
 import pandas as pd
+import pytest
 
 from stacked_eventstudy import estimate_stacked_eventstudy
 
@@ -162,6 +163,30 @@ def test_heterogeneous_effect_panel_recovers_cohort_specific_effects(
             expected_average[row.event_time],
             rel_tol=0.0,
             abs_tol=1e-10,
+        )
+
+
+def test_missing_covariate_rows_fail_validation_before_estimation(
+    two_cohort_panel: pd.DataFrame,
+) -> None:
+    """Reject missing formula covariates before statsmodels drops rows."""
+    data = two_cohort_panel.copy()
+    data["covariate"] = data["age"]
+    data.loc[data["age"].eq(25), "covariate"] = None
+
+    with pytest.raises(ValueError, match="covariate"):
+        estimate_stacked_eventstudy(
+            data=data,
+            id_col="id",
+            age_col="age",
+            treatment_age_col="treatment_age",
+            outcome_col="outcome",
+            l_min=-2,
+            l_max=1,
+            control_window=2,
+            reference_event_time=-1,
+            calendar_year_col="calendar_year",
+            covariates=("covariate",),
         )
 
 

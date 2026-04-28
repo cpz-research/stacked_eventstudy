@@ -173,6 +173,9 @@ validation = validate_stacked_eventstudy(
     calendar_year_col="calendar_year",
 )
 
+print("Validation status:", validation.is_valid)
+print("Validation errors:", validation.errors)
+
 if validation.is_valid:
     result = estimate_stacked_eventstudy(
         data=data,

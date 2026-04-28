@@ -60,7 +60,29 @@ def test_validate_rejects_missing_treatment_age(minimal_panel: pd.DataFrame) -> 
         calendar_year_col="calendar_year",
     )
     assert not result.is_valid
-    assert any("Treatment age is missing" in error for error in result.errors)
+    assert any("treatment_age (1 missing)" in error for error in result.errors)
+
+
+def test_validate_rejects_missing_covariate(minimal_panel: pd.DataFrame) -> None:
+    """Reject missing formula covariates before estimation."""
+    invalid = minimal_panel.copy()
+    invalid["covariate"] = invalid["age"]
+    invalid.loc[0, "covariate"] = pd.NA
+    result = validate_stacked_eventstudy(
+        data=invalid,
+        id_col="id",
+        age_col="age",
+        treatment_age_col="treatment_age",
+        outcome_col="outcome",
+        l_min=-2,
+        l_max=1,
+        control_window=2,
+        reference_event_time=-1,
+        calendar_year_col="calendar_year",
+        covariates=("covariate",),
+    )
+    assert not result.is_valid
+    assert any("covariate (1 missing)" in error for error in result.errors)
 
 
 def test_validate_rejects_infeasible_window(minimal_panel: pd.DataFrame) -> None:

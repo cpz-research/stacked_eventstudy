@@ -118,8 +118,16 @@ def _validate_with_config(
 
     panel = prepare_panel_data(data=data, config=config)
 
-    if panel["treatment_age"].isna().any():
-        errors.append("Treatment age is missing for at least one observation.")
+    missing_estimation_columns = _get_missing_estimation_columns(panel=panel, config=config)
+    if missing_estimation_columns:
+        errors.append(
+            "Estimation columns must be non-missing: "
+            + ", ".join(
+                f"{column} ({count} missing)"
+                for column, count in missing_estimation_columns.items()
+            )
+            + ".",
+        )
 
     if panel.groupby("unit_id", sort=False)["treatment_age"].nunique(dropna=False).gt(1).any():
         errors.append("Treatment age must be constant within individual.")
@@ -342,6 +350,28 @@ def _diagnose_cohorts(
         )
 
     return pd.DataFrame(rows).sort_values("subevent").reset_index(drop=True)
+
+
+def _get_missing_estimation_columns(
+    panel: pd.DataFrame,
+    config: EstimatorConfig,
+) -> dict[str, int]:
+    """Return missing-value counts for columns required during estimation."""
+    estimation_columns = [
+        "unit_id",
+        "age",
+        "treatment_age",
+        "outcome",
+        *config.covariates,
+        "input_weight",
+        "cluster_id",
+    ]
+    missing_counts = panel.loc[:, estimation_columns].isna().sum()
+    return {
+        column: int(count)
+        for column, count in missing_counts.items()
+        if int(count) > 0
+    }
 
 
 def _is_integer_like_series(series: pd.Series) -> bool:
