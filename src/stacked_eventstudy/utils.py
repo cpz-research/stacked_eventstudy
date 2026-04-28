@@ -11,7 +11,9 @@ def coerce_covariates(covariates: Sequence[str]) -> tuple[str, ...]:
     return tuple(covariates)
 
 
-def check_missing_columns(data: pd.DataFrame, columns: Sequence[str]) -> tuple[str, ...]:
+def check_missing_columns(
+    data: pd.DataFrame, columns: Sequence[str]
+) -> tuple[str, ...]:
     """Return missing columns in the given data frame."""
     return tuple(column for column in columns if column not in data.columns)
 

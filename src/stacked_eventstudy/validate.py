@@ -121,7 +121,12 @@ def _validate_with_config(
     if panel["treatment_age"].isna().any():
         errors.append("Treatment age is missing for at least one observation.")
 
-    if panel.groupby("unit_id", sort=False)["treatment_age"].nunique(dropna=False).gt(1).any():
+    if (
+        panel.groupby("unit_id", sort=False)["treatment_age"]
+        .nunique(dropna=False)
+        .gt(1)
+        .any()
+    ):
         errors.append("Treatment age must be constant within individual.")
 
     if not _is_integer_like_series(panel["age"]):
@@ -139,20 +144,27 @@ def _validate_with_config(
         if duplicate_id_calendar_year_count > 0:
             errors.append("Duplicated id-calendar_year observations exist.")
 
-    if config.reference_event_time < config.l_min or config.reference_event_time > config.l_max:
-        errors.append("reference_event_time must lie inside the requested event-time window.")
+    if (
+        config.reference_event_time < config.l_min
+        or config.reference_event_time > config.l_max
+    ):
+        errors.append(
+            "reference_event_time must lie inside the requested event-time window."
+        )
     if config.l_max > config.control_window - 1:
         errors.append("l_max must be less than or equal to control_window - 1.")
     if config.l_min >= config.l_max:
         errors.append("l_min must be strictly smaller than l_max.")
 
     resolved_observed_min_age = (
-        int(panel["age"].min()) if config.observed_min_age is None else config.observed_min_age
+        int(panel["age"].min())
+        if config.observed_min_age is None
+        else config.observed_min_age
     )
     max_observed_treatment_age = int(panel["treatment_age"].max())
     requested_min_cohort = max(
         resolved_observed_min_age - config.l_min,
-        config.min_treatment_age if config.min_treatment_age is not None else -10**9,
+        config.min_treatment_age if config.min_treatment_age is not None else -(10**9),
     )
     requested_max_cohort = min(
         max_observed_treatment_age - config.control_window,
@@ -177,7 +189,9 @@ def _validate_with_config(
             int(admissible_rows["subevent"].max()),
         )
     else:
-        errors.append("No admissible treated cohorts remain after applying restrictions.")
+        errors.append(
+            "No admissible treated cohorts remain after applying restrictions."
+        )
 
     if int(admissible_rows.shape[0]) <= 2 and int(admissible_rows.shape[0]) > 0:
         warnings.append("Very few admissible cohorts remain.")
@@ -216,13 +230,21 @@ def _build_sample_counts(
     """Build sample-count diagnostics."""
     id_column = config.id_col if config.id_col in data.columns else "unit_id"
     treatment_column = (
-        config.treatment_age_col if config.treatment_age_col in data.columns else "treatment_age"
+        config.treatment_age_col
+        if config.treatment_age_col in data.columns
+        else "treatment_age"
     )
     rows = [
         {"metric": "n_rows", "value": int(data.shape[0])},
         {"metric": "n_individuals", "value": int(data[id_column].nunique())},
-        {"metric": "n_unique_treatment_ages", "value": int(data[treatment_column].nunique())},
-        {"metric": "n_missing_treatment_age", "value": int(data[treatment_column].isna().sum())},
+        {
+            "metric": "n_unique_treatment_ages",
+            "value": int(data[treatment_column].nunique()),
+        },
+        {
+            "metric": "n_missing_treatment_age",
+            "value": int(data[treatment_column].isna().sum()),
+        },
         {"metric": "n_duplicate_id_age_rows", "value": duplicate_id_age_count},
         {
             "metric": "n_duplicate_id_calendar_year_rows",
@@ -274,7 +296,9 @@ def _diagnose_cohorts(
     requested_range: tuple[int, int] | None,
 ) -> pd.DataFrame:
     """Create cohort-level diagnostics."""
-    unique_cohorts = sorted(int(value) for value in panel["treatment_age"].dropna().unique())
+    unique_cohorts = sorted(
+        int(value) for value in panel["treatment_age"].dropna().unique()
+    )
     requested_cohorts: set[int] = set()
     if requested_range is not None:
         requested_cohorts = set(range(requested_range[0], requested_range[1] + 1))
@@ -289,7 +313,8 @@ def _diagnose_cohorts(
         treated = panel.loc[panel["treatment_age"] == cohort].copy()
         treated["event_time"] = treated["age"] - cohort
         treated = treated.loc[
-            (treated["event_time"] >= config.l_min) & (treated["event_time"] <= config.l_max)
+            (treated["event_time"] >= config.l_min)
+            & (treated["event_time"] <= config.l_max)
         ]
 
         controls = panel.loc[
@@ -298,7 +323,8 @@ def _diagnose_cohorts(
         controls = controls.loc[controls["age"] < controls["treatment_age"]]
         controls["event_time"] = controls["age"] - cohort
         controls = controls.loc[
-            (controls["event_time"] >= config.l_min) & (controls["event_time"] <= config.l_max)
+            (controls["event_time"] >= config.l_min)
+            & (controls["event_time"] <= config.l_max)
         ]
 
         treated_coverage = set(int(value) for value in treated["event_time"].unique())
@@ -334,10 +360,18 @@ def _diagnose_cohorts(
                 "n_control_individuals": int(controls["unit_id"].nunique()),
                 "n_treated_obs": int(treated.shape[0]),
                 "n_control_obs": int(controls.shape[0]),
-                "treated_event_time_min": treated["event_time"].min() if not treated.empty else pd.NA,
-                "treated_event_time_max": treated["event_time"].max() if not treated.empty else pd.NA,
-                "control_event_time_min": controls["event_time"].min() if not controls.empty else pd.NA,
-                "control_event_time_max": controls["event_time"].max() if not controls.empty else pd.NA,
+                "treated_event_time_min": treated["event_time"].min()
+                if not treated.empty
+                else pd.NA,
+                "treated_event_time_max": treated["event_time"].max()
+                if not treated.empty
+                else pd.NA,
+                "control_event_time_min": controls["event_time"].min()
+                if not controls.empty
+                else pd.NA,
+                "control_event_time_max": controls["event_time"].max()
+                if not controls.empty
+                else pd.NA,
             },
         )
 

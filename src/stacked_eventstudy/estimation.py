@@ -29,7 +29,9 @@ def extract_cohort_params_from_joint_model(
     """Extract cohort-specific event-time coefficients from the joint model."""
     rows: list[dict[str, object]] = []
     cohort_event_pairs = (
-        stacked_data.loc[stacked_data["treated_in_subevent"] == 1, ["subevent", "event_time"]]
+        stacked_data.loc[
+            stacked_data["treated_in_subevent"] == 1, ["subevent", "event_time"]
+        ]
         .drop_duplicates()
         .sort_values(["subevent", "event_time"])
         .itertuples(index=False, name=None)
@@ -37,12 +39,16 @@ def extract_cohort_params_from_joint_model(
     for subevent, event_time in cohort_event_pairs:
         if int(event_time) == config.reference_event_time:
             continue
-        term_label = _joint_regressor_name(subevent=int(subevent), event_time=int(event_time))
+        term_label = _joint_regressor_name(
+            subevent=int(subevent), event_time=int(event_time)
+        )
         if term_label not in fitted_model.params.index:
             continue
         estimate = float(fitted_model.params.loc[term_label])
         std_error = float(fitted_model.bse.loc[term_label])
-        ci_low, ci_high = make_confidence_interval(estimate=estimate, std_error=std_error)
+        ci_low, ci_high = make_confidence_interval(
+            estimate=estimate, std_error=std_error
+        )
         rows.append(
             {
                 "subevent": int(subevent),
@@ -55,7 +61,11 @@ def extract_cohort_params_from_joint_model(
                 "scale": "none",
             },
         )
-    return pd.DataFrame(rows).sort_values(["subevent", "event_time"]).reset_index(drop=True)
+    return (
+        pd.DataFrame(rows)
+        .sort_values(["subevent", "event_time"])
+        .reset_index(drop=True)
+    )
 
 
 def extract_joint_parameter_covariance(
@@ -79,7 +89,9 @@ def extract_joint_parameter_covariance(
     return joint_covariance
 
 
-def _fit_formula_model(data: pd.DataFrame, formula: str, config: EstimatorConfig) -> object:
+def _fit_formula_model(
+    data: pd.DataFrame, formula: str, config: EstimatorConfig
+) -> object:
     """Fit a formula-based regression with clustered standard errors."""
     try:
         import statsmodels.formula.api as smf
@@ -107,7 +119,12 @@ def _make_joint_formula(data: pd.DataFrame, config: EstimatorConfig) -> str:
         for column in data.columns
         if column.startswith("coef_s") and "_l" in column
     ]
-    base_terms = [*regressor_terms, "C(unit_subevent_id)", "C(subevent):C(age)", *config.covariates]
+    base_terms = [
+        *regressor_terms,
+        "C(unit_subevent_id)",
+        "C(subevent):C(age)",
+        *config.covariates,
+    ]
     return "outcome ~ 0 + " + " + ".join(base_terms)
 
 
@@ -115,7 +132,9 @@ def _add_joint_regressors(data: pd.DataFrame, config: EstimatorConfig) -> pd.Dat
     """Add explicit cohort-by-event-time indicators to the full stack."""
     design_data = data.copy()
     cohort_event_pairs = (
-        design_data.loc[design_data["treated_in_subevent"] == 1, ["subevent", "event_time"]]
+        design_data.loc[
+            design_data["treated_in_subevent"] == 1, ["subevent", "event_time"]
+        ]
         .drop_duplicates()
         .sort_values(["subevent", "event_time"])
         .itertuples(index=False, name=None)
@@ -123,7 +142,9 @@ def _add_joint_regressors(data: pd.DataFrame, config: EstimatorConfig) -> pd.Dat
     for subevent, event_time in cohort_event_pairs:
         if int(event_time) == config.reference_event_time:
             continue
-        column_name = _joint_regressor_name(subevent=int(subevent), event_time=int(event_time))
+        column_name = _joint_regressor_name(
+            subevent=int(subevent), event_time=int(event_time)
+        )
         design_data[column_name] = (
             (design_data["subevent"] == int(subevent))
             & (design_data["event_time"] == int(event_time))
