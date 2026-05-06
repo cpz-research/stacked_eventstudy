@@ -5,8 +5,8 @@ rolling-window controls by age at first birth.
 
 The current package is built around the heterogeneity-robust stacked estimator described
 in Melentyeva and Riedel (2025), where each treatment-age cohort is estimated in its own
-stacked subevent and the resulting event-study coefficients are aggregated using treated
-cohort shares.
+stacked subevent and the resulting event-study coefficients are aggregated using focal
+cohort observation shares.
 
 The code is not yet checked against the code of the authors (as there is no replication
 code available as of now).
@@ -87,7 +87,20 @@ The estimator then:
 
 1. runs a cohort-specific regression for each admissible treatment-age cohort
 1. estimates a joint stacked model for covariance extraction
-1. aggregates cohort-specific coefficients using treated cohort shares
+1. aggregates cohort-specific coefficients using focal treated cohort observation shares
+
+## Paper-to-code traceability
+
+The table below maps the main implementation claims from Section IV of Melentyeva and
+Riedel (2025) to the package modules and behavioral tests that guard them.
+
+| Paper component                                                                                                                                           | Implementation                                                                                                                    | Test coverage                                                                                                                                                                                 |
+| --------------------------------------------------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Rolling-window controls use future-treated cohorts and exclude already-treated control observations.                                                      | `src/stacked_eventstudy/stacking.py::build_subevent_stack`                                                                        | `tests/test_paper_alignment.py::test_clean_room_reference_matches_package_cohort_estimates`; `tests/test_paper_alignment.py::test_stacked_data_satisfies_paper_invariants`                    |
+| Subevent-specific event-study indicators are estimated with subevent-by-age fixed effects, unit-by-subevent fixed effects, and clustered standard errors. | `src/stacked_eventstudy/estimation.py::fit_joint_model`                                                                           | `tests/test_paper_alignment.py::test_clean_room_reference_matches_package_cohort_estimates`; `tests/test_estimation_properties.py::test_pyfixest_backend_matches_statsmodels_average_effects` |
+| The requested event-time window must be compatible with the rolling control window and feasible cohort range.                                             | `src/stacked_eventstudy/validate.py::_validate_with_config`                                                                       | `tests/test_validation.py::test_validate_rejects_infeasible_window`; `tests/test_paper_alignment.py::test_stacked_data_satisfies_paper_invariants`                                            |
+| Age-at-birth-specific estimates are aggregated using cohort sample shares and the joint covariance matrix.                                                | `src/stacked_eventstudy/aggregation.py::compute_cohort_weights`; `src/stacked_eventstudy/aggregation.py::aggregate_cohort_params` | `tests/test_estimation_properties.py::test_aggregation_matches_weighted_cohort_average`; `tests/test_paper_alignment.py::test_cohort_weights_use_focal_observation_mass`                      |
+| Pre-birth scaling divides cohort-specific effects and covariances by cohort-specific pre-birth levels.                                                    | `src/stacked_eventstudy/scaling.py::compute_pre_birth_levels`; `src/stacked_eventstudy/scaling.py::scale_cohort_params`           | `tests/test_estimation_properties.py::test_pre_birth_scaling_matches_manual_scaling`                                                                                                          |
 
 ## Main functions
 
@@ -253,8 +266,14 @@ also includes `heterogeneity_col`, `heterogeneity_value`, and `weight_scheme`.
 One row per admissible treated cohort:
 
 - `subevent`
-- `n_individuals`
+- `n_observations`
+- `weight_mass`
 - `weight`
+
+`n_observations` counts focal treated cohort rows in the requested event-time window.
+`weight_mass` is the corresponding sum of input weights; in unweighted data this equals
+`n_observations`. The normalized `weight` is the cohort's `weight_mass` divided by the
+total `weight_mass` across retained cohorts.
 
 When `heterogeneity_col` is supplied, weights are returned by group and cohort.
 

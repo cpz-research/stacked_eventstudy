@@ -347,7 +347,8 @@ def test_heterogeneous_aggregation_allows_available_weights_below_one() -> None:
         {
             "heterogeneity_value": ["a"],
             "subevent": [25],
-            "n_individuals": [1],
+            "n_observations": [1],
+            "weight_mass": [0.9974160206718347],
             "weight": [0.9974160206718347],
             "weight_scheme": ["within"],
         },
@@ -465,6 +466,8 @@ def test_result_tables_expose_expected_columns(
         "n_cohorts",
         "scale",
     }.issubset(result.average_params.columns)
-    assert {"subevent", "n_individuals", "weight"} == set(result.cohort_weights.columns)
+    assert {"subevent", "n_observations", "weight_mass", "weight"} == set(
+        result.cohort_weights.columns,
+    )
     assert result.contrast_params.empty
     assert result.stacked_data is not None

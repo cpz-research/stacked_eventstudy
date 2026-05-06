@@ -25,19 +25,20 @@ CONTRAST_COLUMNS = [
 
 
 def compute_cohort_weights(stacked_data: pd.DataFrame) -> pd.DataFrame:
-    """Compute treated-cohort weights using treated individual counts."""
-    treated_counts = (
+    """Compute treated-cohort weights using focal treated observation mass."""
+    treated_observations = (
         stacked_data.loc[
-            stacked_data["treated_in_subevent"] == 1, ["subevent", "unit_id"]
+            stacked_data["treated_in_subevent"] == 1, ["subevent", "input_weight"]
         ]
-        .drop_duplicates()
         .groupby("subevent", as_index=False)
-        .size()
-        .rename(columns={"size": "n_individuals"})
+        .agg(
+            n_observations=("input_weight", "size"),
+            weight_mass=("input_weight", "sum"),
+        )
     )
-    total_individuals = int(treated_counts["n_individuals"].sum())
-    treated_counts["weight"] = treated_counts["n_individuals"] / total_individuals
-    return treated_counts.sort_values("subevent").reset_index(drop=True)
+    total_mass = float(treated_observations["weight_mass"].sum())
+    treated_observations["weight"] = treated_observations["weight_mass"] / total_mass
+    return treated_observations.sort_values("subevent").reset_index(drop=True)
 
 
 def compute_heterogeneous_cohort_weights(
@@ -287,24 +288,27 @@ def make_empty_contrast_params() -> pd.DataFrame:
 def _compute_within_heterogeneity_cohort_weights(
     stacked_data: pd.DataFrame,
 ) -> pd.DataFrame:
-    """Compute cohort weights within each heterogeneity group."""
-    treated_counts = (
+    """Compute focal observation-mass weights within each heterogeneity group."""
+    treated_observations = (
         stacked_data.loc[
             stacked_data["treated_in_subevent"] == 1,
-            ["heterogeneity_value", "subevent", "unit_id"],
+            ["heterogeneity_value", "subevent", "input_weight"],
         ]
-        .drop_duplicates()
         .groupby(["heterogeneity_value", "subevent"], as_index=False)
-        .size()
-        .rename(columns={"size": "n_individuals"})
+        .agg(
+            n_observations=("input_weight", "size"),
+            weight_mass=("input_weight", "sum"),
+        )
     )
-    totals = treated_counts.groupby("heterogeneity_value")["n_individuals"].transform(
-        "sum"
-    )
-    treated_counts["weight"] = treated_counts["n_individuals"] / totals
-    treated_counts["weight_scheme"] = "within"
-    return treated_counts.sort_values(["heterogeneity_value", "subevent"]).reset_index(
-        drop=True
+    totals = treated_observations.groupby("heterogeneity_value")[
+        "weight_mass"
+    ].transform("sum")
+    treated_observations["weight"] = treated_observations["weight_mass"] / totals
+    treated_observations["weight_scheme"] = "within"
+    return treated_observations.sort_values(
+        ["heterogeneity_value", "subevent"]
+    ).reset_index(
+        drop=True,
     )
 
 
