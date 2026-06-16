@@ -144,6 +144,7 @@ estimate_stacked_eventstudy(
     heterogeneity_weighting="within",
     scale="none",
     backend="statsmodels",
+    covariance_policy="stata",
     return_stacked_data=False,
 )
 ```
@@ -160,9 +161,24 @@ Important arguments:
 - `scale="pre_birth"`: rescales effects by the treated cohort's mean outcome at the
   reference period
 - `cluster_col`: overrides default clustering on the original individual id
+- `covariance_policy`: clustered covariance convention, either `"stata"` for Stata-like
+  finite-sample corrections or `"none"` for unadjusted clustered covariance
 
 The estimator always requires complete treated and control support in the requested
 event-time window for an admissible cohort.
+
+### Stata parity validation
+
+The default test suite does not execute Stata. On WSL machines with Windows Stata
+available, run the opt-in parity check with:
+
+```console
+pytest -m stata
+```
+
+Set `STATA_EXE` if Stata is not installed at
+`/mnt/c/Program Files/StataNow19/StataMP-64.exe`. The check requires the Windows Stata
+environment to have `reghdfe`, `ftools`, and `require` installed.
 
 ## Quick start
 

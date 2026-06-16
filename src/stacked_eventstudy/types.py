@@ -28,6 +28,7 @@ class EstimatorConfig:
     heterogeneity_weighting: str
     scale: str
     backend: str
+    covariance_policy: str
     return_stacked_data: bool
 
 
