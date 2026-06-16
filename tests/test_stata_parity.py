@@ -120,8 +120,9 @@ def _require_stata_dependencies(tmp_path: Path) -> None:
         encoding="utf-8",
     )
     result = _run_stata(do_path=check_do, cwd=tmp_path, check=False)
-    log_text = (tmp_path / "stata_dependency_check.log").read_text(encoding="utf-8")
-    missing_dependency = result.returncode != 0 or any(
+    log_path = tmp_path / "stata_dependency_check.log"
+    log_text = log_path.read_text(encoding="utf-8") if log_path.exists() else ""
+    missing_dependency = result.returncode != 0 or not log_path.exists() or any(
         message in log_text
         for message in (
             "command reghdfe not found",
