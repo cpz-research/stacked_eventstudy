@@ -9,6 +9,19 @@ import pytest
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "src"))
 
 
+def pytest_collection_modifyitems(
+    config: pytest.Config,
+    items: list[pytest.Item],
+) -> None:
+    """Skip Stata integration tests unless explicitly selected."""
+    if "stata" in config.option.markexpr:
+        return
+    skip_stata = pytest.mark.skip(reason="run with `pytest -m stata`")
+    for item in items:
+        if "stata" in item.keywords:
+            item.add_marker(skip_stata)
+
+
 def make_panel(
     treatment_ages: tuple[int, ...],
     ages: tuple[int, ...],

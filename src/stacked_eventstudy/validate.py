@@ -82,6 +82,7 @@ def validate_stacked_eventstudy(
         heterogeneity_weighting=heterogeneity_weighting,
         scale="none",
         backend="statsmodels",
+        covariance_policy="stata",
         return_stacked_data=False,
     )
     return _validate_with_config(data=data, config=config)
@@ -188,6 +189,8 @@ def _validate_with_config(
         errors.append("l_min must be strictly smaller than l_max.")
     if config.backend not in {"statsmodels", "pyfixest"}:
         errors.append("backend must be either 'statsmodels' or 'pyfixest'.")
+    if config.covariance_policy not in {"stata", "none"}:
+        errors.append("covariance_policy must be either 'stata' or 'none'.")
     if config.heterogeneity_weighting not in {"within", "overall"}:
         errors.append("heterogeneity_weighting must be either 'within' or 'overall'.")
 

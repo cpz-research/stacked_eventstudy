@@ -53,6 +53,7 @@ def estimate_stacked_eventstudy(
     heterogeneity_weighting: str = "within",
     scale: str = "none",
     backend: str = "statsmodels",
+    covariance_policy: str = "stata",
     return_stacked_data: bool = False,
 ) -> StackedEventStudyResult:
     """Estimate stacked event-study effects with rolling-window controls.
@@ -81,6 +82,9 @@ def estimate_stacked_eventstudy(
         scale: Whether to return raw effects or pre-birth scaled effects.
         backend: Regression backend name. Supported values are `"statsmodels"` and
             `"pyfixest"`.
+        covariance_policy: Clustered covariance convention. Supported values are
+            `"stata"` and `"none"`. The `"stata"` policy uses backend finite-sample
+            corrections intended to match Stata/reghdfe defaults.
         return_stacked_data: Whether to return the constructed stacked sample.
 
     Returns:
@@ -111,6 +115,7 @@ def estimate_stacked_eventstudy(
         heterogeneity_weighting=heterogeneity_weighting,
         scale=scale,
         backend=backend,
+        covariance_policy=covariance_policy,
         return_stacked_data=return_stacked_data,
     )
     validation = _validate_with_config(data=data, config=config)

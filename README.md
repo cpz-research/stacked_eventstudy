@@ -8,8 +8,8 @@ in Melentyeva and Riedel (2025), where each treatment-age cohort is estimated in
 stacked subevent and the resulting event-study coefficients are aggregated using focal
 cohort observation shares.
 
-The code is not yet checked against the code of the authors (as there is no replication
-code available as of now).
+The package is validated against the authors' Stata implementation available at
+<https://gitlab.com/lukasriedel/MelentyevaRiedel_StackedDiD>.
 
 ## Status
 
@@ -89,19 +89,6 @@ The estimator then:
 1. estimates a joint stacked model for covariance extraction
 1. aggregates cohort-specific coefficients using focal treated cohort observation shares
 
-## Paper-to-code traceability
-
-The table below maps the main implementation claims from Section IV of Melentyeva and
-Riedel (2025) to the package modules and behavioral tests that guard them.
-
-| Paper component                                                                                                                                           | Implementation                                                                                                                    | Test coverage                                                                                                                                                                                 |
-| --------------------------------------------------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Rolling-window controls use future-treated cohorts and exclude already-treated control observations.                                                      | `src/stacked_eventstudy/stacking.py::build_subevent_stack`                                                                        | `tests/test_paper_alignment.py::test_clean_room_reference_matches_package_cohort_estimates`; `tests/test_paper_alignment.py::test_stacked_data_satisfies_paper_invariants`                    |
-| Subevent-specific event-study indicators are estimated with subevent-by-age fixed effects, unit-by-subevent fixed effects, and clustered standard errors. | `src/stacked_eventstudy/estimation.py::fit_joint_model`                                                                           | `tests/test_paper_alignment.py::test_clean_room_reference_matches_package_cohort_estimates`; `tests/test_estimation_properties.py::test_pyfixest_backend_matches_statsmodels_average_effects` |
-| The requested event-time window must be compatible with the rolling control window and feasible cohort range.                                             | `src/stacked_eventstudy/validate.py::_validate_with_config`                                                                       | `tests/test_validation.py::test_validate_rejects_infeasible_window`; `tests/test_paper_alignment.py::test_stacked_data_satisfies_paper_invariants`                                            |
-| Age-at-birth-specific estimates are aggregated using cohort sample shares and the joint covariance matrix.                                                | `src/stacked_eventstudy/aggregation.py::compute_cohort_weights`; `src/stacked_eventstudy/aggregation.py::aggregate_cohort_params` | `tests/test_estimation_properties.py::test_aggregation_matches_weighted_cohort_average`; `tests/test_paper_alignment.py::test_cohort_weights_use_focal_observation_mass`                      |
-| Pre-birth scaling divides cohort-specific effects and covariances by cohort-specific pre-birth levels.                                                    | `src/stacked_eventstudy/scaling.py::compute_pre_birth_levels`; `src/stacked_eventstudy/scaling.py::scale_cohort_params`           | `tests/test_estimation_properties.py::test_pre_birth_scaling_matches_manual_scaling`                                                                                                          |
-
 ## Main functions
 
 ### `validate_stacked_eventstudy(...)`
@@ -144,6 +131,7 @@ estimate_stacked_eventstudy(
     heterogeneity_weighting="within",
     scale="none",
     backend="statsmodels",
+    covariance_policy="stata",
     return_stacked_data=False,
 )
 ```
@@ -160,9 +148,23 @@ Important arguments:
 - `scale="pre_birth"`: rescales effects by the treated cohort's mean outcome at the
   reference period
 - `cluster_col`: overrides default clustering on the original individual id
+- `covariance_policy`: clustered covariance convention, either `"stata"` for Stata-like
+  finite-sample corrections or `"none"` for unadjusted clustered covariance
 
 The estimator always requires complete treated and control support in the requested
 event-time window for an admissible cohort.
+
+### Stata parity validation
+
+The default test suite does not execute Stata. Run the opt-in parity check with:
+
+```console
+pytest -m stata
+```
+
+Set `STATA_EXE` if Stata is not installed at
+`/mnt/c/Program Files/StataNow19/StataMP-64.exe`. The check requires the Windows Stata
+environment to have `reghdfe`, `ftools`, and `require` installed.
 
 ## Quick start
 
@@ -306,9 +308,6 @@ construction and control alignment.
 - Controls are aligned to the treated cohort's event time, not their own.
 - The post-birth horizon is constrained by `control_window`.
 - Supported regression backends are `statsmodels` and `pyfixest`.
-- There is no conventional benchmark estimator in the current package version.
-- The current implementation is aimed at clean panel inputs and synthetic validation
-  first; broader empirical hardening is still ongoing.
 
 ## Example script
 
