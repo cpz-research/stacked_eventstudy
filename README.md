@@ -8,8 +8,8 @@ in Melentyeva and Riedel (2025), where each treatment-age cohort is estimated in
 stacked subevent and the resulting event-study coefficients are aggregated using focal
 cohort observation shares.
 
-The code is not yet checked against the code of the authors (as there is no replication
-code available as of now).
+The package is validated against the authors' Stata implementation available at
+<https://gitlab.com/lukasriedel/MelentyevaRiedel_StackedDiD>.
 
 ## Status
 
