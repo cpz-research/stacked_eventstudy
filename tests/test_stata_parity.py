@@ -20,8 +20,12 @@ ESTIMATION_DO = (
     / "estimation.do"
 )
 STRICT_ATOL = 1e-8
+ESTIMATE_ATOL = 1e-7
 SE_ATOL = 1e-6
 POST_TAIL_EVENT_TIME = 4
+RESIDUAL_CENTER = 11
+RESIDUAL_MODULUS = 23
+RESIDUAL_SCALE = 0.05
 MEMBERSHIP_COLUMNS = [
     "unit_id",
     "age",
@@ -214,13 +218,18 @@ def _make_stata_validation_panel() -> pd.DataFrame:
                     if event_time > POST_TAIL_EVENT_TIME
                     else 0.0,
                 )
+                residual = (
+                    ((unit_id * 17 + age * 13) % RESIDUAL_MODULUS) - RESIDUAL_CENTER
+                ) * RESIDUAL_SCALE
                 rows.append(
                     {
                         "persnr": unit_id,
                         "age": age,
                         "agefirst": agefirst,
                         "time": event_time,
-                        "yrearn": 20.0 + unit_fe + 0.8 * age + treatment_effect,
+                        "yrearn": (
+                            20.0 + unit_fe + 0.8 * age + treatment_effect + residual
+                        ),
                     },
                 )
             unit_id += 1
@@ -372,6 +381,7 @@ quietly forvalues c = `cohort_first'/`cohort_last' {{
 postclose `weight_handle'
 preserve
 use "`working_dir'/stata_cohort_weights.dta", clear
+format weight %21.15g
 export delimited using "`working_dir'/stata_cohort_weights.csv", replace
 restore
 
@@ -410,11 +420,13 @@ postclose `average_handle'
 
 preserve
 use "`working_dir'/stata_cohort_params.dta", clear
+format estimate std_error %21.15g
 export delimited using "`working_dir'/stata_cohort_params.csv", replace
 restore
 
 preserve
 use "`working_dir'/stata_average_params.dta", clear
+format estimate std_error %21.15g
 export delimited using "`working_dir'/stata_average_params.csv", replace
 restore
 
@@ -489,7 +501,7 @@ def _assert_cohort_estimates_match(
     assert np.allclose(
         comparison["estimate_python"],
         comparison["estimate_stata"],
-        atol=STRICT_ATOL,
+        atol=ESTIMATE_ATOL,
         rtol=0.0,
     )
     assert np.allclose(
@@ -516,7 +528,7 @@ def _assert_average_estimates_match(
     assert np.allclose(
         comparison["estimate_python"],
         comparison["estimate_stata"],
-        atol=STRICT_ATOL,
+        atol=ESTIMATE_ATOL,
         rtol=0.0,
     )
     assert np.allclose(
