@@ -1,0 +1,20 @@
+cff-version: 1.2.0
+message: "If you use this software, please cite it as below."
+title: "stacked_eventstudy"
+version: "0.1.0"
+license: BSD-3-Clause
+authors:
+  - family-names: "Zimpelmann"
+    given-names: "Christian Pugnaghi"
+repository-code: "https://github.com/cpz-research/stacked_eventstudy"
+references:
+  - type: article
+    title: "Child penalty estimation and mothers' age at first birth"
+    authors:
+      - family-names: "Melentyeva"
+        given-names: "Viktoria"
+      - family-names: "Riedel"
+        given-names: "Lukas"
+    year: 2025
+    collection-title: "ZEW Discussion Papers"
+    number: "25-033"

@@ -17,6 +17,8 @@ UNBALANCED_COHORT_OBSERVATIONS = 7
 COMPARISON_COHORT_OBSERVATIONS = 8
 TOTAL_UNBALANCED_OBSERVATIONS = 15
 MIN_CONVENTIONAL_BIAS = 5.0
+PARTIAL_TREATED_ROWS_AFTER_DROP = 3
+COMPLETE_TREATED_OBSERVATIONS_AFTER_DROP = 4
 
 
 def test_clean_room_reference_matches_package_cohort_estimates(
@@ -173,9 +175,74 @@ def test_cohort_weights_use_focal_observation_mass(
     )
 
 
-def test_stacked_estimator_recovers_effects_when_conventional_event_study_is_biased() -> (
-    None
-):
+def test_unbalanced_treated_panel_policy_controls_partial_focal_rows(
+    two_cohort_panel: pd.DataFrame,
+) -> None:
+    """Optionally drop focal treated units with incomplete subevent coverage."""
+    first_cohort_unit = int(
+        two_cohort_panel.loc[
+            two_cohort_panel["treatment_age"] == UNBALANCED_COHORT,
+            "id",
+        ].min()
+    )
+    drop_one_focal_row = (
+        (two_cohort_panel["treatment_age"] == UNBALANCED_COHORT)
+        & (two_cohort_panel["id"] == first_cohort_unit)
+        & (two_cohort_panel["age"] == DROPPED_FOCAL_AGE)
+    )
+    unbalanced = two_cohort_panel.loc[~drop_one_focal_row].copy()
+
+    common_kwargs = {
+        "data": unbalanced,
+        "id_col": "id",
+        "age_col": "age",
+        "treatment_age_col": "treatment_age",
+        "outcome_col": "outcome",
+        "l_min": -2,
+        "l_max": 1,
+        "control_window": 2,
+        "reference_event_time": -1,
+        "calendar_year_col": "calendar_year",
+        "return_stacked_data": True,
+    }
+    available_result = estimate_stacked_eventstudy(**common_kwargs)
+    complete_result = estimate_stacked_eventstudy(
+        **common_kwargs,
+        allow_unbalanced_treated_panel=False,
+    )
+    assert available_result.stacked_data is not None
+    assert complete_result.stacked_data is not None
+
+    available_focal_rows = available_result.stacked_data.loc[
+        (available_result.stacked_data["subevent"] == UNBALANCED_COHORT)
+        & (available_result.stacked_data["unit_id"] == first_cohort_unit)
+        & (available_result.stacked_data["treated_in_subevent"] == 1)
+    ]
+    complete_focal_rows = complete_result.stacked_data.loc[
+        (complete_result.stacked_data["subevent"] == UNBALANCED_COHORT)
+        & (complete_result.stacked_data["unit_id"] == first_cohort_unit)
+        & (complete_result.stacked_data["treated_in_subevent"] == 1)
+    ]
+
+    assert available_focal_rows.shape[0] == PARTIAL_TREATED_ROWS_AFTER_DROP
+    assert complete_focal_rows.empty
+    assert (
+        available_result.cohort_params.loc[
+            available_result.cohort_params["subevent"] == UNBALANCED_COHORT,
+            "n_treated_obs",
+        ].iloc[0]
+        == UNBALANCED_COHORT_OBSERVATIONS
+    )
+    assert (
+        complete_result.cohort_params.loc[
+            complete_result.cohort_params["subevent"] == UNBALANCED_COHORT,
+            "n_treated_obs",
+        ].iloc[0]
+        == COMPLETE_TREATED_OBSERVATIONS_AFTER_DROP
+    )
+
+
+def test_stacked_estimator_recovers_effects_when_twfe_is_biased() -> None:
     """Recover known dynamic effects in a design where TWFE event study is biased."""
     data = _make_contaminated_event_study_panel()
     expected = pd.Series(

@@ -1,19 +1,22 @@
 # stacked_eventstudy
 
+[![CI](https://github.com/cpz-research/stacked_eventstudy/actions/workflows/ci.yml/badge.svg)](https://github.com/cpz-research/stacked_eventstudy/actions/workflows/ci.yml)
+
 `stacked_eventstudy` implements a stacked difference-in-differences estimator with
 rolling-window controls by age at first birth.
 
-The current package is built around the heterogeneity-robust stacked estimator described
-in Melentyeva and Riedel (2025), where each treatment-age cohort is estimated in its own
+The package is built around the heterogeneity-robust stacked estimator introduced by
+Melentyeva and Riedel (2025), where each treatment-age cohort is estimated in its own
 stacked subevent and the resulting event-study coefficients are aggregated using focal
 cohort observation shares.
 
-The package is validated against the authors' Stata implementation available at
+The implementation is tested against clean-room synthetic examples and includes an
+opt-in parity check against the authors' Stata implementation available at
 <https://gitlab.com/lukasriedel/MelentyevaRiedel_StackedDiD>.
 
 ## Status
 
-The package currently includes:
+This is pre-1.0 research software. The package currently includes:
 
 - public APIs for validation and estimation
 - validation of panel structure, treatment-age consistency, and cohort feasibility
@@ -37,6 +40,12 @@ Run tests with:
 pixi run pytest
 ```
 
+After installation, the package should import directly:
+
+```bash
+pixi run python -c "import stacked_eventstudy"
+```
+
 ## Data requirements
 
 Input data must be an individual-level panel with:
@@ -55,7 +64,7 @@ Optional inputs:
 
 The current implementation assumes:
 
-- all individuals are eventually treated
+- all individuals are eventually treated; never-treated controls are not supported yet
 - age is observed in integer years
 - treatment age is constant within individual
 - there are no duplicate `id-age` observations
@@ -131,7 +140,8 @@ estimate_stacked_eventstudy(
     heterogeneity_weighting="within",
     scale="none",
     backend="statsmodels",
-    covariance_policy="stata",
+    covariance_policy="small_sample_correction",
+    allow_unbalanced_treated_panel=True,
     return_stacked_data=False,
 )
 ```
@@ -148,11 +158,19 @@ Important arguments:
 - `scale="pre_birth"`: rescales effects by the treated cohort's mean outcome at the
   reference period
 - `cluster_col`: overrides default clustering on the original individual id
-- `covariance_policy`: clustered covariance convention, either `"stata"` for Stata-like
-  finite-sample corrections or `"none"` for unadjusted clustered covariance
+- `covariance_policy`: clustered covariance convention, either
+  `"small_sample_correction"` for finite-sample corrections corresponding to
+  Stata/reghdfe defaults and pyfixest's default `ssc()` behavior, or `"none"` for
+  unadjusted clustered covariance
+- `allow_unbalanced_treated_panel`: whether to keep available focal treated rows when
+  treated individuals have incomplete event-window coverage; set to `False` to match the
+  authors' Stata balancing rule
 
-The estimator always requires complete treated and control support in the requested
-event-time window for an admissible cohort.
+Validation always requires treated and control support in the requested event-time
+window for an admissible cohort. By default, estimation keeps available focal treated
+rows inside admissible cohorts. Set `allow_unbalanced_treated_panel=False` to drop focal
+treated individuals that do not have complete event-window coverage within a subevent,
+matching the authors' Stata balancing rule.
 
 ### Stata parity validation
 
@@ -222,7 +240,7 @@ if validation.is_valid:
 ```
 
 A larger executable example is available in
-[examples/basic_usage.py](/home/zimpelmann/ECON/stacked_eventstudy/examples/basic_usage.py:1).
+[examples/basic_usage.py](examples/basic_usage.py).
 
 ## Returned objects
 
@@ -314,13 +332,13 @@ construction and control alignment.
 Run the included example with:
 
 ```bash
-PYTHONPATH=src pixi run python examples/basic_usage.py
+pixi run python examples/basic_usage.py
 ```
 
 Run the heterogeneity example with:
 
 ```bash
-PYTHONPATH=src pixi run python examples/heterogeneity_usage.py
+pixi run python examples/heterogeneity_usage.py
 ```
 
 ## Reference

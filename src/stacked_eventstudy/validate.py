@@ -8,6 +8,8 @@ from stacked_eventstudy.preprocess import prepare_panel_data
 from stacked_eventstudy.types import EstimatorConfig, StackedEventStudyValidation
 from stacked_eventstudy.utils import check_missing_columns, coerce_covariates
 
+FEW_COHORT_WARNING_THRESHOLD = 2
+
 
 def validate_stacked_eventstudy(
     data: pd.DataFrame,
@@ -82,13 +84,14 @@ def validate_stacked_eventstudy(
         heterogeneity_weighting=heterogeneity_weighting,
         scale="none",
         backend="statsmodels",
-        covariance_policy="stata",
+        covariance_policy="small_sample_correction",
+        allow_unbalanced_treated_panel=True,
         return_stacked_data=False,
     )
     return _validate_with_config(data=data, config=config)
 
 
-def _validate_with_config(
+def _validate_with_config(  # noqa: C901, PLR0912
     data: pd.DataFrame,
     config: EstimatorConfig,
 ) -> StackedEventStudyValidation:
@@ -126,7 +129,11 @@ def _validate_with_config(
             admissible_cohort_range=None,
             cohort_diagnostics=pd.DataFrame(),
             sample_counts=_build_sample_counts(data, config),
-            window_feasibility=_build_window_feasibility(config, False, False),
+            window_feasibility=_build_window_feasibility(
+                config=config,
+                observed_min_age_resolved=False,
+                requested_cohort_range_nonempty=False,
+            ),
         )
 
     panel = prepare_panel_data(data=data, config=config)
@@ -189,8 +196,12 @@ def _validate_with_config(
         errors.append("l_min must be strictly smaller than l_max.")
     if config.backend not in {"statsmodels", "pyfixest"}:
         errors.append("backend must be either 'statsmodels' or 'pyfixest'.")
-    if config.covariance_policy not in {"stata", "none"}:
-        errors.append("covariance_policy must be either 'stata' or 'none'.")
+    if config.covariance_policy not in {"small_sample_correction", "none"}:
+        errors.append(
+            "covariance_policy must be either 'small_sample_correction' or 'none'."
+        )
+    if not isinstance(config.allow_unbalanced_treated_panel, bool):
+        errors.append("allow_unbalanced_treated_panel must be a boolean.")
     if config.heterogeneity_weighting not in {"within", "overall"}:
         errors.append("heterogeneity_weighting must be either 'within' or 'overall'.")
 
@@ -231,7 +242,10 @@ def _validate_with_config(
             "No admissible treated cohorts remain after applying restrictions."
         )
 
-    if int(admissible_rows.shape[0]) <= 2 and int(admissible_rows.shape[0]) > 0:
+    if (
+        int(admissible_rows.shape[0]) <= FEW_COHORT_WARNING_THRESHOLD
+        and int(admissible_rows.shape[0]) > 0
+    ):
         warnings.append("Very few admissible cohorts remain.")
 
     sample_counts = _build_sample_counts(
@@ -294,8 +308,8 @@ def _build_sample_counts(
 
 def _build_window_feasibility(
     config: EstimatorConfig,
-    observed_min_age_resolved: bool,
-    requested_cohort_range_nonempty: bool,
+    observed_min_age_resolved: bool,  # noqa: FBT001
+    requested_cohort_range_nonempty: bool,  # noqa: FBT001
 ) -> pd.DataFrame:
     """Build event-window feasibility diagnostics."""
     rows = [
@@ -365,8 +379,8 @@ def _diagnose_cohorts(
             & (controls["event_time"] <= config.l_max)
         ]
 
-        treated_coverage = set(int(value) for value in treated["event_time"].unique())
-        control_coverage = set(int(value) for value in controls["event_time"].unique())
+        treated_coverage = {int(value) for value in treated["event_time"].unique()}
+        control_coverage = {int(value) for value in controls["event_time"].unique()}
         has_rolling_controls = not controls.empty
         treated_complete = required_treated_event_times.issubset(treated_coverage)
         controls_complete = required_control_event_times.issubset(control_coverage)

@@ -132,7 +132,7 @@ def _fit_statsmodels_formula_model(
 ) -> object:
     """Fit a statsmodels formula regression with clustered standard errors."""
     weights = data["input_weight"] if config.weights_col is not None else None
-    use_correction = config.covariance_policy == "stata"
+    use_correction = config.covariance_policy == "small_sample_correction"
     fit_kwargs = {
         "cov_type": "cluster",
         "cov_kwds": {"groups": data["cluster_id"], "use_correction": use_correction},
@@ -150,7 +150,7 @@ def _fit_pyfixest_formula_model(
 ) -> object:
     """Fit a pyfixest formula regression with clustered standard errors."""
     weights = "input_weight" if config.weights_col is not None else None
-    if config.covariance_policy == "stata":
+    if config.covariance_policy == "small_sample_correction":
         small_sample_correction = pf.ssc()
     else:
         small_sample_correction = pf.ssc(k_adj=False, G_adj=False)

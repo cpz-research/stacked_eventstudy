@@ -37,10 +37,16 @@ MEMBERSHIP_COLUMNS = [
 
 
 @pytest.mark.stata
-def test_windows_stata_matches_python_full_stack_and_estimates(tmp_path: Path) -> None:
+@pytest.mark.parametrize("panel_scenario", ["balanced", "unbalanced_treated"])
+def test_windows_stata_matches_python_full_stack_and_estimates(
+    tmp_path: Path,
+    panel_scenario: str,
+) -> None:
     """Compare Python outputs to a real Stata run of the paper's estimator."""
     _require_stata_dependencies(tmp_path=tmp_path)
     panel = _make_stata_validation_panel()
+    if panel_scenario == "unbalanced_treated":
+        panel = _drop_one_focal_treated_row(panel=panel)
     stata_data_path = tmp_path / "stata_validation_input.dta"
     panel.to_stata(stata_data_path, write_index=False, version=118)
 
@@ -84,7 +90,8 @@ def test_windows_stata_matches_python_full_stack_and_estimates(tmp_path: Path) -
         max_treatment_age=33,
         observed_min_age=22,
         backend="pyfixest",
-        covariance_policy="stata",
+        covariance_policy="small_sample_correction",
+        allow_unbalanced_treated_panel=False,
         return_stacked_data=True,
     )
     assert python_result.stacked_data is not None
@@ -122,12 +129,16 @@ def _require_stata_dependencies(tmp_path: Path) -> None:
     result = _run_stata(do_path=check_do, cwd=tmp_path, check=False)
     log_path = tmp_path / "stata_dependency_check.log"
     log_text = log_path.read_text(encoding="utf-8") if log_path.exists() else ""
-    missing_dependency = result.returncode != 0 or not log_path.exists() or any(
-        message in log_text
-        for message in (
-            "command reghdfe not found",
-            "command ftools not found",
-            "command require not found",
+    missing_dependency = (
+        result.returncode != 0
+        or not log_path.exists()
+        or any(
+            message in log_text
+            for message in (
+                "command reghdfe not found",
+                "command ftools not found",
+                "command require not found",
+            )
         )
     )
     if missing_dependency:
@@ -235,6 +246,13 @@ def _make_stata_validation_panel() -> pd.DataFrame:
                 )
             unit_id += 1
     return pd.DataFrame(rows)
+
+
+def _drop_one_focal_treated_row(panel: pd.DataFrame) -> pd.DataFrame:
+    """Remove one treated row to exercise Stata-style treated balancing."""
+    focal_unit = int(panel.loc[panel["agefirst"].eq(25), "persnr"].min())
+    incomplete_treated_row = panel["persnr"].eq(focal_unit) & panel["age"].eq(22)
+    return panel.loc[~incomplete_treated_row].reset_index(drop=True)
 
 
 def _make_validation_do_file(

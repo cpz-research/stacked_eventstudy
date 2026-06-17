@@ -8,6 +8,15 @@ version = "0.1.0"
 description = "Stacked event-study estimation with rolling-window controls."
 readme = "README.md"
 requires-python = ">=3.13"
+authors = [
+  { name = "Christian Pugnaghi Zimpelmann" },
+]
+license = "BSD-3-Clause"
+keywords = [
+  "difference-in-differences",
+  "event-study",
+  "econometrics",
+]
 dependencies = [
   "numpy",
   "pandas",
@@ -16,10 +25,18 @@ dependencies = [
   "statsmodels",
 ]
 classifiers = [
+  "Development Status :: 3 - Alpha",
+  "Intended Audience :: Science/Research",
+  "License :: OSI Approved :: BSD License",
+  "Operating System :: OS Independent",
   "Programming Language :: Python :: 3 :: Only",
   "Programming Language :: Python :: 3.13",
   "Programming Language :: Python :: 3.14",
+  "Topic :: Scientific/Engineering",
 ]
+
+[project.urls]
+Repository = "https://github.com/cpz-research/stacked_eventstudy"
 
 [project.optional-dependencies]
 dev = [
@@ -75,3 +92,6 @@ statsmodels = "*"
 ruff = ">=0.15.11,<0.16"
 pre-commit = ">=4.6.0,<5"
 gh = ">=2.91.0,<3"
+
+[tool.pixi.pypi-dependencies]
+stacked_eventstudy = { path = ".", editable = true }

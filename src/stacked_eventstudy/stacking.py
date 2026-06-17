@@ -43,6 +43,8 @@ def build_subevent_stack(
         (treated["event_time"] >= config.l_min)
         & (treated["event_time"] <= config.l_max)
     ]
+    if not config.allow_unbalanced_treated_panel:
+        treated = _drop_incomplete_treated_units(treated=treated)
     treated["treated_in_subevent"] = 1
 
     controls = data.loc[
@@ -60,3 +62,12 @@ def build_subevent_stack(
     subevent_data = pd.concat([treated, controls], ignore_index=True)
     subevent_data["stack_weight"] = subevent_data["input_weight"]
     return subevent_data
+
+
+def _drop_incomplete_treated_units(treated: pd.DataFrame) -> pd.DataFrame:
+    """Drop focal treated units without the full treated event-window coverage."""
+    if treated.empty:
+        return treated
+    event_time_counts = treated.groupby("unit_id")["event_time"].transform("size")
+    complete_count = int(event_time_counts.max())
+    return treated.loc[event_time_counts.eq(complete_count)].copy()

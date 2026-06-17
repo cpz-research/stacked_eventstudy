@@ -7,6 +7,7 @@ import pandas as pd
 from stacked_eventstudy.aggregation import (
     aggregate_cohort_params,
     aggregate_heterogeneous_cohort_params,
+    compute_cohort_counts,
     compute_cohort_weights,
     compute_heterogeneous_cohort_counts,
     compute_heterogeneous_cohort_weights,
@@ -53,8 +54,9 @@ def estimate_stacked_eventstudy(
     heterogeneity_weighting: str = "within",
     scale: str = "none",
     backend: str = "statsmodels",
-    covariance_policy: str = "stata",
-    return_stacked_data: bool = False,
+    covariance_policy: str = "small_sample_correction",
+    allow_unbalanced_treated_panel: bool = True,  # noqa: FBT001, FBT002
+    return_stacked_data: bool = False,  # noqa: FBT001, FBT002
 ) -> StackedEventStudyResult:
     """Estimate stacked event-study effects with rolling-window controls.
 
@@ -83,8 +85,12 @@ def estimate_stacked_eventstudy(
         backend: Regression backend name. Supported values are `"statsmodels"` and
             `"pyfixest"`.
         covariance_policy: Clustered covariance convention. Supported values are
-            `"stata"` and `"none"`. The `"stata"` policy uses backend finite-sample
-            corrections intended to match Stata/reghdfe defaults.
+            `"small_sample_correction"` and `"none"`. The
+            `"small_sample_correction"` policy uses backend finite-sample corrections
+            corresponding to Stata/reghdfe defaults and pyfixest's default `ssc()`.
+        allow_unbalanced_treated_panel: Whether to keep available focal treated rows
+            when treated individuals have incomplete event-window coverage in a
+            subevent. Set to `False` to match the authors' Stata balancing rule.
         return_stacked_data: Whether to return the constructed stacked sample.
 
     Returns:
@@ -116,6 +122,7 @@ def estimate_stacked_eventstudy(
         scale=scale,
         backend=backend,
         covariance_policy=covariance_policy,
+        allow_unbalanced_treated_panel=allow_unbalanced_treated_panel,
         return_stacked_data=return_stacked_data,
     )
     validation = _validate_with_config(data=data, config=config)
@@ -139,16 +146,7 @@ def estimate_stacked_eventstudy(
     )
     if config.heterogeneity_col is None:
         cohort_weights = compute_cohort_weights(stacked_data=stacked_data)
-        cohort_counts = validation.cohort_diagnostics.loc[
-            validation.cohort_diagnostics["admissible"],
-            [
-                "subevent",
-                "n_treated_individuals",
-                "n_control_individuals",
-                "n_treated_obs",
-                "n_control_obs",
-            ],
-        ]
+        cohort_counts = compute_cohort_counts(stacked_data=stacked_data)
     else:
         cohort_weights = compute_heterogeneous_cohort_weights(
             stacked_data=stacked_data,

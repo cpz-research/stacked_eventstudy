@@ -54,9 +54,24 @@ def compute_heterogeneous_cohort_weights(
     raise ValueError(msg)
 
 
+def compute_cohort_counts(stacked_data: pd.DataFrame) -> pd.DataFrame:
+    """Compute treated and control counts by cohort from the actual stack."""
+    return _compute_counts_by_keys(stacked_data=stacked_data, keys=["subevent"])
+
+
 def compute_heterogeneous_cohort_counts(stacked_data: pd.DataFrame) -> pd.DataFrame:
     """Compute cohort counts by heterogeneity group."""
-    keys = ["heterogeneity_value", "subevent"]
+    return _compute_counts_by_keys(
+        stacked_data=stacked_data,
+        keys=["heterogeneity_value", "subevent"],
+    )
+
+
+def _compute_counts_by_keys(
+    stacked_data: pd.DataFrame,
+    keys: list[str],
+) -> pd.DataFrame:
+    """Compute treated and control counts by grouping keys."""
     count_columns = [
         "n_treated_individuals",
         "n_control_individuals",

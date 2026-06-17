@@ -40,4 +40,5 @@ jobs:
           locked: true
           cache: true
           cache-write: ${{ github.event_name == 'push' && github.ref_name == 'main' }}
-      - run: python -m compileall src tests
+      - run: pixi run python -m compileall src tests examples
+      - run: pixi run python -c "import stacked_eventstudy; print(stacked_eventstudy.__file__)"

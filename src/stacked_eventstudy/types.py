@@ -29,6 +29,7 @@ class EstimatorConfig:
     scale: str
     backend: str
     covariance_policy: str
+    allow_unbalanced_treated_panel: bool
     return_stacked_data: bool
 
 
