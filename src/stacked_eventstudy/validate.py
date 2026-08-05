@@ -5,6 +5,7 @@ from collections.abc import Sequence
 import pandas as pd
 
 from stacked_eventstudy.preprocess import prepare_panel_data
+from stacked_eventstudy.stacking import retain_complete_treated_units
 from stacked_eventstudy.types import EstimatorConfig, StackedEventStudyValidation
 from stacked_eventstudy.utils import check_missing_columns, coerce_covariates
 
@@ -368,6 +369,12 @@ def _diagnose_cohorts(
             (treated["event_time"] >= config.l_min)
             & (treated["event_time"] <= config.l_max)
         ]
+        if not config.allow_unbalanced_treated_panel:
+            treated = retain_complete_treated_units(
+                treated=treated,
+                l_min=config.l_min,
+                l_max=config.l_max,
+            )
 
         controls = panel.loc[
             panel["treatment_age"].between(cohort + 1, cohort + config.control_window),

@@ -90,7 +90,8 @@ def estimate_stacked_eventstudy(
             corresponding to Stata/reghdfe defaults and pyfixest's default `ssc()`.
         allow_unbalanced_treated_panel: Whether to keep available focal treated rows
             when treated individuals have incomplete event-window coverage in a
-            subevent. Set to `False` to match the authors' Stata balancing rule.
+            subevent. Set to `False` to retain only treated individuals observed at
+            every requested event time.
         return_stacked_data: Whether to return the constructed stacked sample.
 
     Returns:

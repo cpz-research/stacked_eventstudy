@@ -242,6 +242,46 @@ def test_unbalanced_treated_panel_policy_controls_partial_focal_rows(
     )
 
 
+def test_balanced_policy_requires_every_requested_event_time(
+    two_cohort_panel: pd.DataFrame,
+) -> None:
+    """Reject equal-length histories that cover different incomplete windows."""
+    cohort_units = two_cohort_panel.loc[
+        two_cohort_panel["treatment_age"] == UNBALANCED_COHORT,
+        "id",
+    ].unique()
+    rows_to_drop = (
+        (two_cohort_panel["id"] == cohort_units[0])
+        & (two_cohort_panel["age"] == UNBALANCED_COHORT - 2)
+    ) | (
+        (two_cohort_panel["id"] == cohort_units[1])
+        & (two_cohort_panel["age"] == UNBALANCED_COHORT + 1)
+    )
+    incomplete = two_cohort_panel.loc[~rows_to_drop].copy()
+
+    result = estimate_stacked_eventstudy(
+        data=incomplete,
+        id_col="id",
+        age_col="age",
+        treatment_age_col="treatment_age",
+        outcome_col="outcome",
+        l_min=-2,
+        l_max=1,
+        control_window=2,
+        reference_event_time=-1,
+        calendar_year_col="calendar_year",
+        allow_unbalanced_treated_panel=False,
+        return_stacked_data=True,
+    )
+
+    diagnostic = result.validation.cohort_diagnostics.set_index("subevent").loc[
+        UNBALANCED_COHORT
+    ]
+    assert diagnostic["drop_reason"] == "missing_treated_event_times"
+    assert result.stacked_data is not None
+    assert UNBALANCED_COHORT not in set(result.stacked_data["subevent"])
+
+
 def test_stacked_estimator_recovers_effects_when_twfe_is_biased() -> None:
     """Recover known dynamic effects in a design where TWFE event study is biased."""
     data = _make_contaminated_event_study_panel()

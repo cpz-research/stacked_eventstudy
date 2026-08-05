@@ -163,14 +163,13 @@ Important arguments:
   Stata/reghdfe defaults and pyfixest's default `ssc()` behavior, or `"none"` for
   unadjusted clustered covariance
 - `allow_unbalanced_treated_panel`: whether to keep available focal treated rows when
-  treated individuals have incomplete event-window coverage; set to `False` to match the
-  authors' Stata balancing rule
+  treated individuals have incomplete event-window coverage; set to `False` to retain
+  only treated individuals observed at every requested event time
 
 Validation always requires treated and control support in the requested event-time
 window for an admissible cohort. By default, estimation keeps available focal treated
 rows inside admissible cohorts. Set `allow_unbalanced_treated_panel=False` to drop focal
-treated individuals that do not have complete event-window coverage within a subevent,
-matching the authors' Stata balancing rule.
+treated individuals that do not have every requested event time within a subevent.
 
 ### Stata parity validation
 
