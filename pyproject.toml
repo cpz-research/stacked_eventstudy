@@ -46,7 +46,7 @@ dev = [
 [tool.pytest.ini_options]
 testpaths = ["tests"]
 markers = [
-  "stata: tests that execute Windows Stata through WSL",
+  "stata: tests that execute an installed Stata application",
 ]
 
 [tool.ruff]

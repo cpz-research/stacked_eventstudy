@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import os
+import shutil
 import subprocess
 from pathlib import Path
 
@@ -12,8 +13,13 @@ import pytest
 
 from stacked_eventstudy import estimate_stacked_eventstudy
 
-DEFAULT_STATA_EXE = "/mnt/c/Program Files/StataNow19/StataMP-64.exe"
-STATA_EXE = Path(os.environ.get("STATA_EXE", DEFAULT_STATA_EXE))
+STATA_COMMANDS = ("stata-mp", "stata-se", "stata")
+STATA_APP_EXECUTABLES = (
+    Path("/Applications/Stata/StataMP.app/Contents/MacOS/StataMP"),
+    Path("/Applications/Stata/StataSE.app/Contents/MacOS/StataSE"),
+    Path("/Applications/Stata/StataBE.app/Contents/MacOS/StataBE"),
+)
+WSL_STATA_EXECUTABLE = Path("/mnt/c/Program Files/StataNow19/StataMP-64.exe")
 ESTIMATION_DO = (
     Path(__file__).resolve().parents[2]
     / "MelentyevaRiedel_StackedDiD"
@@ -36,9 +42,22 @@ MEMBERSHIP_COLUMNS = [
 ]
 
 
+def test_make_stata_command_uses_native_batch_mode(tmp_path: Path) -> None:
+    """Use Unix batch syntax and paths for native macOS and Linux Stata."""
+    stata_executable = Path("/usr/local/bin/stata-mp")
+    do_path = tmp_path / "validation.do"
+
+    command = _make_stata_command(
+        stata_executable=stata_executable,
+        do_path=do_path,
+    )
+
+    assert command == (str(stata_executable), "-b", "do", str(do_path))
+
+
 @pytest.mark.stata
 @pytest.mark.parametrize("panel_scenario", ["balanced", "unbalanced_treated"])
-def test_windows_stata_matches_python_full_stack_and_estimates(
+def test_stata_matches_python_full_stack_and_estimates(
     tmp_path: Path,
     panel_scenario: str,
 ) -> None:
@@ -116,10 +135,10 @@ def test_windows_stata_matches_python_full_stack_and_estimates(
 
 def _require_stata_dependencies(tmp_path: Path) -> None:
     """Fail clearly when Stata or required ado packages are unavailable."""
-    if not STATA_EXE.exists():
+    if _find_stata_executable() is None:
         pytest.fail(
-            "Windows Stata executable not found. "
-            "Set STATA_EXE to the Stata executable.",
+            "Stata executable not found. Set STATA_EXE to the Stata executable or "
+            "add Stata to PATH.",
         )
     check_do = tmp_path / "stata_dependency_check.do"
     check_do.write_text(
@@ -143,9 +162,8 @@ def _require_stata_dependencies(tmp_path: Path) -> None:
     )
     if missing_dependency:
         pytest.fail(
-            "Windows Stata is available, but required Stata ado packages are not. "
-            "Install `reghdfe`, `ftools`, and `require` in Windows Stata before "
-            "running `pytest -m stata`.",
+            "Stata is available, but required ado packages are not. Install "
+            "`reghdfe`, `ftools`, and `require` before running `pytest -m stata`.",
         )
 
 
@@ -155,9 +173,16 @@ def _run_stata(
     *,
     check: bool = True,
 ) -> subprocess.CompletedProcess[str]:
-    """Run a Stata do-file in batch mode through WSL interop."""
+    """Run a Stata do-file in batch mode."""
+    stata_executable = _find_stata_executable()
+    if stata_executable is None:
+        msg = "Stata executable was not found after checking dependencies."
+        raise RuntimeError(msg)
     result = subprocess.run(  # noqa: S603
-        [str(STATA_EXE), "/e", "do", _to_stata_path(do_path)],
+        _make_stata_command(
+            stata_executable=stata_executable,
+            do_path=do_path,
+        ),
         cwd=cwd,
         check=False,
         text=True,
@@ -195,8 +220,46 @@ def _assert_stata_outputs_exist(
     )
 
 
-def _to_stata_path(path: Path) -> str:
-    """Convert a WSL path to a Stata-friendly Windows path."""
+def _find_stata_executable() -> Path | None:
+    """Find Stata from configuration or common platform-specific locations."""
+    configured_executable = os.environ.get("STATA_EXE")
+    if configured_executable:
+        configured_path = Path(configured_executable).expanduser()
+        if configured_path.exists():
+            return configured_path
+        if executable := shutil.which(configured_executable):
+            return Path(executable)
+        return None
+
+    for command in STATA_COMMANDS:
+        if executable := shutil.which(command):
+            return Path(executable)
+
+    for executable in (*STATA_APP_EXECUTABLES, WSL_STATA_EXECUTABLE):
+        if executable.exists():
+            return executable
+
+    return None
+
+
+def _make_stata_command(stata_executable: Path, do_path: Path) -> tuple[str, ...]:
+    """Create the platform-appropriate Stata batch command."""
+    if stata_executable.suffix.lower() == ".exe":
+        return (
+            str(stata_executable),
+            "/e",
+            "do",
+            _to_stata_path(do_path, stata_executable=stata_executable),
+        )
+    return (str(stata_executable), "-b", "do", str(do_path))
+
+
+def _to_stata_path(path: Path, stata_executable: Path | None = None) -> str:
+    """Return a path formatted for the selected Stata executable."""
+    if stata_executable is None:
+        stata_executable = _find_stata_executable()
+    if stata_executable is None or stata_executable.suffix.lower() != ".exe":
+        return str(path)
     return subprocess.run(  # noqa: S603
         ["/usr/bin/wslpath", "-m", str(path)],
         check=True,

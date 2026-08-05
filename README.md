@@ -179,9 +179,10 @@ The default test suite does not execute Stata. Run the opt-in parity check with:
 pytest -m stata
 ```
 
-Set `STATA_EXE` if Stata is not installed at
-`/mnt/c/Program Files/StataNow19/StataMP-64.exe`. The check requires the Windows Stata
-environment to have `reghdfe`, `ftools`, and `require` installed.
+The test discovers `stata-mp`, `stata-se`, or `stata` on `PATH`, standard macOS Stata
+application installs, and StataNow 19 in its default WSL location. Set `STATA_EXE` to
+the executable for any other installation. The Stata environment must have `reghdfe`,
+`ftools`, and `require` installed.
 
 ## Quick start
 
